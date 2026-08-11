@@ -44,10 +44,3 @@ services:
 
 volumes:
   exam_data:
-
-networks:
-  default:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 192.168.99.0/24
