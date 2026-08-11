@@ -1,0 +1,71 @@
+// ============================================================
+// Prisma Schema — Viksit Bharat - G RAM G Examination Portal
+// Database: SQLite (file-based, zero configuration)
+// ============================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ------------------------------------------------------------
+// User — a registered candidate who appears for the exam
+// ------------------------------------------------------------
+model User {
+  id          String    @id @default(cuid())
+  name        String // Full name of the candidate (mandatory)
+  designation String // e.g. Panchayat Sewak, BDO Staff, etc.
+  block       String // Administrative block in Deoghar district
+  mobile      String // 10-digit mobile number
+  email       String // Official/personal email address
+  score       Int       @default(0) // FINAL score — server-computed on submission
+  submittedAt DateTime? // When the candidate submitted the exam
+
+  // ---- Live-session tracking (used by the admin LIVE status panel) ----
+  startedAt    DateTime? // First time the candidate began the exam
+  lastActiveAt DateTime? // Last heartbeat received while taking the exam
+  liveScore    Int       @default(0) // Candidate-reported score while in progress (informational only — final score is recomputed server-side)
+
+  // ---- Interrupted-session resume (network failure etc.) ----
+  // A candidate whose live session breaks (no recent heartbeat) must request
+  // to resume; the admin approves before the exam can continue.
+  resumeRequestedAt DateTime? // Candidate asked to resume after an interruption
+  resumeApprovedAt  DateTime? // Admin approved the resume request
+  // Last-known selected answers (questionId → chosen option), saved via the
+  // periodic heartbeat so a resumed candidate continues where they left off.
+  answers Json?
+
+  createdAt DateTime  @default(now()) // Registration timestamp
+
+  @@index([createdAt])
+}
+
+// ------------------------------------------------------------
+// Question — an MCQ used in the examination
+// options: JSON array of 4 option strings
+// correctAnswer: the exact option text marked as correct
+// ------------------------------------------------------------
+model Question {
+  id            String   @id @default(cuid())
+  text          String // Question text
+  options       Json // JSON array of option strings, e.g. ["A) ...", "B) ..."]
+  correctAnswer String // The correct option text
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ------------------------------------------------------------
+// Setting — simple key-value store for portal-wide configuration.
+// Currently holds the exam window flag (`exam_open`): the admin can
+// open the exam (candidates may register & start) or close it
+// (registration is blocked; ongoing sessions are unaffected).
+// ------------------------------------------------------------
+model Setting {
+  key   String @id
+  value String
+}

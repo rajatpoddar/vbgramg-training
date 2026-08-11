@@ -1,0 +1,28 @@
+node_modules
+.next
+out
+.git
+.env
+.env*.local
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.tsbuildinfo
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md
+.nvmrc
+.claude
+.windsurf
+.agents
+skills-lock.json
+
+# project-local Node.js runtime (dev-only, ~150 MB — must not reach the
+# Docker build context)
+.node20
+
+# Dev-only utility scripts (e.g. scripts/import_mcqs.py). Not needed in the
+# image — the container seeds data via the admin portal, not local files.
+scripts

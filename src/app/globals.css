@@ -4,24 +4,154 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1f2937;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ============================================================
+   Base
+   ============================================================ */
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+/* ============================================================
+   Government Portal Components
+   ============================================================ */
+@layer components {
+  /* The official Indian tricolor band (Saffron - White - Green)
+     with thin Ashoka-navy separators, used on top of the header. */
+  .tricolor-stripe {
+    height: 6px;
+    background: linear-gradient(
+      to right,
+      #ff9933 0%,
+      #ff9933 calc(33.333% - 1px),
+      #003366 calc(33.333% - 1px),
+      #003366 33.333%,
+      #ffffff 33.333%,
+      #ffffff 66.667%,
+      #003366 66.667%,
+      #003366 calc(66.667% + 1px),
+      #138808 calc(66.667% + 1px),
+      #138808 100%
+    );
+  }
+
+  /* Circular placeholder for official logos (National Emblem etc.)
+     Compact on mobile (single-row header), full size on desktop. */
+  .logo-placeholder {
+    @apply flex h-9 w-9 items-center justify-center rounded-full border-2 border-navy/30 bg-white text-navy shadow-sm sm:h-16 sm:w-16;
+  }
+
+  /* Reusable white card with a saffron accent border on top */
+  .gov-card {
+    @apply rounded-md border border-gray-200 bg-white shadow-sm;
+    border-top: 4px solid #ff9933;
+  }
+
+  /* Formal heading with a short saffron underline */
+  .gov-heading {
+    @apply text-xl font-bold text-navy md:text-2xl;
+  }
+
+  /* Primary action button — saffron (official "Proceed" style) */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded border border-saffron-dark bg-saffron px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-saffron-dark disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /* Secondary action button — India green */
+  .btn-green {
+    @apply inline-flex items-center justify-center gap-2 rounded border border-indiaGreen-dark bg-indiaGreen px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indiaGreen-dark disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /* Neutral/outline button */
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-navy shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /* Danger button */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded border border-red-700 bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /* Formal form input */
+  .form-input {
+    @apply w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron;
+  }
+
+  .form-label {
+    @apply mb-1 block text-sm font-medium text-navy;
+  }
+
+  .form-error {
+    @apply mt-1 text-xs font-medium text-red-600;
+  }
+
+  /* Print-only elements are hidden on screen */
+  .print-only {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Print Styles — Official A4 Report
+   ============================================================ */
+@page {
+  size: A4 portrait;
+  margin: 12mm 14mm 14mm 14mm;
+}
+
+/* The admin analytics report prints in landscape so the full-width table
+   (all 8 columns) fits on one page without being cut off. The report page
+   opts in via the `page` CSS property (style="page: report-landscape"). */
+@page report-landscape {
+  size: A4 landscape;
+  margin: 10mm 12mm;
+}
+
+@media print {
+  /* Hide all screen-only chrome (header, nav, footer, buttons) */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reveal elements reserved for the printed letterhead */
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Remove card shadows / rounded corners so the page reads like a document */
+  .gov-card,
+  .shadow-sm,
+  .shadow,
+  .shadow-md {
+    box-shadow: none !important;
+  }
+
+  /* Keep the report table crisp on paper */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group; /* repeat header on each printed page */
   }
 }

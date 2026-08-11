@@ -1,26 +1,41 @@
 {
-  "name": "exam-app",
+  "name": "viksit-bharat-g-ram-g-exam",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.17.0 <22.0.0"
+  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3926 -H 0.0.0.0",
+    "dev:local": "next dev -p 3926",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start -p 3926",
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "typecheck": "tsc --noEmit",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "better-sqlite3": "^13.0.3",
+    "lucide-react": "^1.31.0",
+    "next": "14.2.35",
     "react": "^18",
-    "react-dom": "^18",
-    "next": "14.2.35"
+    "react-dom": "^18"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
+    "dotenv": "^17.4.2",
     "eslint": "^8",
-    "eslint-config-next": "14.2.35"
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "prisma": "^7.9.1",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5"
   }
 }

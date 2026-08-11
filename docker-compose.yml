@@ -1,0 +1,46 @@
+# ============================================================
+# Docker Compose — Viksit Bharat - G RAM G Examination Portal
+# ------------------------------------------------------------
+# Usage:
+#   docker compose up -d --build
+#
+# The SQLite database lives on a named volume (`exam_data`) mounted at
+# /data, so all candidate records survive container restarts/upgrades.
+#
+# Set ADMIN_PASSWORD / ADMIN_TOKEN in a .env file next to this file
+# (docker compose reads it automatically). If serving over plain HTTP,
+# keep COOKIE_SECURE=false; set true when behind HTTPS.
+# ============================================================
+
+services:
+  exam-portal:
+    build: .
+    image: viksit-bharat-g-ram-g-exam:latest
+    container_name: viksit-bharat-g-ram-g-exam
+    restart: unless-stopped
+    ports:
+      - "3926:3926"
+    environment:
+      # Absolute path inside the container, on the persistent volume.
+      DATABASE_URL: "file:/data/exam.db"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-dev-admin-token}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+    volumes:
+      - exam_data:/data
+    # Health check: the home page renders only when the app + SQLite DB work.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3926/').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  exam_data:
