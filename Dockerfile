@@ -9,7 +9,7 @@
 # ============================================================
 
 # ---------- Stage 1: dependencies ----------
-FROM node:20-slim AS deps
+FROM node:22-slim AS deps
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -17,13 +17,19 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # a (placeholder) DATABASE_URL must be present at install time. No real DB
 # connection is made during generate.
 ENV DATABASE_URL="file:./prisma/dev.db"
+
+# better-sqlite3 is a native addon — node-gyp needs python3 + build tools
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 RUN npm ci
 
 # ---------- Stage 2: build the application ----------
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL="file:./prisma/dev.db"
@@ -33,7 +39,7 @@ COPY . .
 RUN npx prisma generate && npm run build
 
 # ---------- Stage 3: minimal runtime ----------
-FROM node:20-slim AS runner
+FROM node:22-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
