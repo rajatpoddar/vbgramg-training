@@ -8,6 +8,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Info,
+  ListChecks,
   Loader2,
   Maximize2,
   Play,
@@ -83,6 +84,9 @@ export default function ExamInterface({
   });
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Question palette is collapsed on phones so the screen stays focused on
+  // the timer + question + options (toggled via the status bar).
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(
     initialTimeLeft ?? EXAM_DURATION_SECONDS
   );
@@ -125,6 +129,10 @@ export default function ExamInterface({
   const timeExpiredRef = useRef(false);
   // Simple throttle for the per-answer heartbeat (max 1 write / 3s).
   const lastHeartbeatRef = useRef(0);
+  // When the last anti-cheat violation was recorded — used to collapse the
+  // blur + visibilitychange pair that a single interruption (incoming call,
+  // screen-off) fires back-to-back into one violation.
+  const lastViolationAtRef = useRef(0);
 
   /** Live score — recomputed instantly as options are selected. */
   const liveScore = useMemo(
@@ -167,6 +175,20 @@ export default function ExamInterface({
     [router, userId]
   );
 
+  /**
+   * Re-sync the countdown with the server's authoritative remaining time.
+   * Only applies the correction when the drift is meaningful, so minor
+   * clock differences between the phone and server are ignored. This keeps
+   * the timer honest after a screen-off / background-tab pause (browser
+   * timers are throttled there, but the server clock is not).
+   */
+  const syncClock = useCallback((serverSeconds: number) => {
+    setTimeLeft((local) => {
+      if (Math.abs(local - serverSeconds) > 5) return serverSeconds;
+      return local;
+    });
+  }, []);
+
   /**    * Report the participant's current score + activity to the server so the
    * admin LIVE panel can show who is taking the exam right now.
    */
@@ -178,9 +200,13 @@ export default function ExamInterface({
     // Persist the current answers so an interrupted session can be resumed.
     // If the admin force-ended the session, redirect to the result page.
     void heartbeat(userId, score, answersRef.current).then((res) => {
-      if (res?.ended) router.replace(`/result?userId=${userId}`);
+      if (res?.ended) {
+        router.replace(`/result?userId=${userId}`);
+      } else if (res?.timeLeft !== undefined) {
+        syncClock(res.timeLeft);
+      }
     });
-  }, [questions, userId, router]);
+  }, [questions, userId, router, syncClock]);
 
   /**
    * Record an anti-cheat violation. Strictly-worded warning; on the
@@ -189,6 +215,12 @@ export default function ExamInterface({
   const recordViolation = useCallback(
     (message: string) => {
       if (submittingRef.current || phaseRef.current !== "exam") return;
+
+      // One interruption (a phone call, the screen turning off) fires blur
+      // and visibilitychange almost simultaneously — count it once.
+      const now = Date.now();
+      if (now - lastViolationAtRef.current < 3000) return;
+      lastViolationAtRef.current = now;
 
       const next = strikesRef.current + 1;
       strikesRef.current = next;
@@ -216,6 +248,10 @@ export default function ExamInterface({
       }
     };
     const onWindowBlur = () => {
+      // A phone call / notification hides the document AND blurs the window
+      // at the same time — counting both would record two violations for one
+      // interruption. The visibility handler below already covers it.
+      if (document.hidden) return;
       recordViolation("The exam window lost focus.");
     };
     const onFullscreenChange = () => {
@@ -292,7 +328,11 @@ export default function ExamInterface({
     // Register the live session + first heartbeat immediately (also persists
     // any restored answers from a resumed session).
     void heartbeat(userId, 0, answersRef.current).then((res) => {
-      if (res?.ended) router.replace(`/result?userId=${userId}`);
+      if (res?.ended) {
+        router.replace(`/result?userId=${userId}`);
+      } else if (res?.timeLeft !== undefined) {
+        syncClock(res.timeLeft);
+      }
     });
   };
 
@@ -326,7 +366,11 @@ export default function ExamInterface({
       const newScore = liveScore + (option === q.correctAnswer ? 1 : 0);
       const nextAnswers = { ...answersRef.current, [q.id]: option };
       void heartbeat(userId, newScore, nextAnswers).then((res) => {
-        if (res?.ended) router.replace(`/result?userId=${userId}`);
+        if (res?.ended) {
+          router.replace(`/result?userId=${userId}`);
+        } else if (res?.timeLeft !== undefined) {
+          syncClock(res.timeLeft);
+        }
       });
     }
   };
@@ -461,36 +505,54 @@ export default function ExamInterface({
   ).padStart(2, "0")}`;
 
   return (
-    <div className="space-y-4">
-      {/* Status bar: Live Score | Timer | Answered | Anti-cheat strikes */}
-      <div className="gov-card flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
-        <div className="text-sm">
-          <span className="font-semibold text-navy">Live Score:</span>{" "}
+    <div
+      className="space-y-4 no-select"
+      onContextMenu={(e) => e.preventDefault()}
+      // Nothing inside the live exam may be selected, copied, dragged or
+      // pasted — long-press selection on Android phones can trigger AI
+      // assistants, so even copy/paste shortcuts are blocked.
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onPaste={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
+      {/* Status bar: timer always visible (sticky on phones); the rest of
+          the stats are desktop-only so the mobile screen stays focused on
+          the timer, the question and the options. */}
+      <div className="gov-card sticky top-2 z-20 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+        <div className="flex items-center gap-3">
+          {/* Countdown timer */}
+          <div
+            className={`flex items-center gap-1.5 rounded border px-2.5 py-1 text-sm font-bold tabular-nums ${
+              timeLeft <= 60
+                ? "animate-pulse border-red-600 bg-red-50 text-red-700"
+                : "border-saffron bg-saffron-light text-saffron-dark"
+            }`}
+            title="Remaining time"
+          >
+            <Timer className="h-4 w-4" />
+            {timeLabel}
+          </div>
+          {/* Compact progress on phones — the only other thing in the bar */}
+          <span className="text-xs font-semibold text-gray-600 sm:hidden">
+            Q {currentIndex + 1}/{questions.length}
+          </span>
+        </div>
+
+        <div className="hidden items-center gap-2 text-sm sm:flex">
+          <span className="font-semibold text-navy">Live Score:</span>
           <span className="font-bold text-indiaGreen">{liveScore}</span>
           <span className="text-gray-500"> / {questions.length}</span>
         </div>
 
-        {/* Countdown timer */}
-        <div
-          className={`flex items-center gap-1.5 rounded border px-2.5 py-1 text-sm font-bold tabular-nums ${
-            timeLeft <= 60
-              ? "animate-pulse border-red-600 bg-red-50 text-red-700"
-              : "border-saffron bg-saffron-light text-saffron-dark"
-          }`}
-          title="Remaining time"
-        >
-          <Timer className="h-4 w-4" />
-          {timeLabel}
-        </div>
-
-        <div className="flex items-center gap-2 text-sm">
+        <div className="hidden items-center gap-2 text-sm sm:flex">
           <span className="font-medium text-gray-600">Answered:</span>
           <span className="font-semibold text-navy">
             {answeredCount}/{questions.length}
           </span>
         </div>
         {/* Strike indicator */}
-        <div className="flex items-center gap-1.5" title="Anti-cheat violations">
+        <div className="hidden items-center gap-1.5 sm:flex" title="Anti-cheat violations">
           <ShieldAlert className="h-4 w-4 text-saffron-dark" />
           {Array.from({ length: MAX_STRIKES }).map((_, i) => (
             <span
@@ -503,10 +565,25 @@ export default function ExamInterface({
             />
           ))}
         </div>
+
+        {/* Palette toggle — phones only; on desktop the palette is always on */}
+        <button
+          type="button"
+          onClick={() => setPaletteOpen((o) => !o)}
+          aria-expanded={paletteOpen}
+          className="flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-navy sm:hidden"
+        >
+          <ListChecks className="h-3.5 w-3.5" />
+          Palette {paletteOpen ? "▲" : "▼"}
+        </button>
       </div>
 
-      {/* Question palette */}
-      <div className="gov-card px-4 py-3">
+      {/* Question palette — collapsed on phones until toggled */}
+      <div
+        className={`gov-card px-4 py-3 ${
+          paletteOpen ? "block" : "hidden sm:block"
+        }`}
+      >
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
           Question Palette
         </p>
@@ -527,7 +604,12 @@ export default function ExamInterface({
               <button
                 key={q.id}
                 type="button"
-                onClick={() => setCurrentIndex(i)}
+                onClick={() => {
+                  setCurrentIndex(i);
+                  // On phones, returning to the question closes the palette
+                  // so the view stays focused on the question + options.
+                  if (paletteOpen) setPaletteOpen(false);
+                }}
                 className={`h-8 w-8 rounded border text-xs font-semibold transition-colors ${cls}`}
                 aria-label={`Go to question ${i + 1}`}
               >
@@ -544,7 +626,7 @@ export default function ExamInterface({
           Question {currentIndex + 1} of {questions.length}
         </p>
         <h2 className="text-base font-semibold leading-relaxed text-navy md:text-lg">
-          {current.text}
+          <span draggable={false}>{current.text}</span>
         </h2>
 
         <div className="mt-5 space-y-2.5">
@@ -575,7 +657,7 @@ export default function ExamInterface({
                 onClick={() => selectOption(option)}
                 className={`flex w-full items-center justify-between gap-3 rounded border px-4 py-3 text-left text-sm transition-colors disabled:cursor-not-allowed ${cls}`}
               >
-                <span>{option}</span>
+                <span draggable={false}>{option}</span>
                 {answered && isCorrectOption && (
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-indiaGreen" />
                 )}

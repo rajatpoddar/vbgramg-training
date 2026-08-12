@@ -11,14 +11,18 @@ Defaults:
     db   = prisma/dev.db   (the local development database)
 
 Behaviour:
-  - Parses questions in the format used by the official document:
-      <number>. <question text>
+  - Parses questions in the format used by the official documents. Both
+    numbering styles are accepted:
+      <number>. <question text>      (old style)
+      Q.<number> <question text>     (new style)
       A) option 1
       B) option 2
       C) option 3
       D) option 4
       सही उत्तर: <letter>) <correct option text>
       स्पष्टीकरण / व्याख्या: ...   (ignored)
+    Long questions split across several paragraphs are joined into one
+    question.
   - The correct answer is stored as the *exact* option string, which is how
     the exam's real-time feedback compares answers.
   - With --replace the Question table is cleared before importing (idempotent).
@@ -55,20 +59,35 @@ def extract_paragraphs(docx_path: str) -> list[str]:
     return paragraphs
 
 
+# A question starts with "<number>. <text>" (old style) or "Q.<number>
+# <text>" (new style). Two separate patterns so a paragraph that merely
+# starts with a digit (a continuation line) is never misread as a question:
+# the old style requires a separator after the number, the new style the
+# "Q" prefix.
+QUESTION_START_RE = re.compile(
+    r"^(?:(\d{1,3})\s*[.)]\s+(.+)$|Q\.?\s*(\d{1,3})\s*[.)]?\s+(.+)$)"
+)
+
+# Lines that must never be folded into the question text.
+IGNORED_PREFIXES = ("व्याख्या", "स्पष्टीकरण", "Explanation", "Note", "नोट")
+
+
 def parse_questions(paragraphs: list[str]) -> list[dict]:
     """Convert the flat paragraph list into question records."""
     questions = []
     current = None
 
     for line in paragraphs:
-        # A new question starts with "<number>. <text>"
-        m = re.match(r"^(\d+)\.\s*(.*)$", line)
+        m = QUESTION_START_RE.match(line)
         if m:
-            if current and len(current["options"]) >= 2:
+            # Old style captures number/text in groups 1/2, new style in 3/4.
+            num = m.group(1) if m.group(1) is not None else m.group(3)
+            text = (m.group(2) if m.group(2) is not None else m.group(4)).strip()
+            if current and len(current["options"]) >= 1:
                 questions.append(current)
             current = {
-                "num": int(m.group(1)),
-                "text": m.group(2).strip(),
+                "num": int(num),
+                "text": text,
                 "options": [],
                 "answer": "",
             }
@@ -83,8 +102,11 @@ def parse_questions(paragraphs: list[str]) -> list[dict]:
         elif line.startswith("सही उत्तर"):
             answer = line.split(":", 1)[1].strip() if ":" in line else line
             current["answer"] = answer
+        elif not line.startswith(IGNORED_PREFIXES):
+            # The question statement continues on this line — append it.
+            current["text"] = (current["text"] + " " + line).strip()
 
-    if current and len(current["options"]) >= 2:
+    if current and len(current["options"]) >= 1:
         questions.append(current)
 
     return questions

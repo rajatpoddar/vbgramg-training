@@ -122,17 +122,22 @@ export default function ExamControlPanel({
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[11px] text-gray-500">
-        <span className="inline-flex items-center gap-1">
-          <AlertTriangle className="h-3.5 w-3.5 text-saffron-dark" />
-          Stopping blocks <strong>new</strong> registrations — participants
-          already inside the exam can finish.
+      {/* Notes — stacked full-width on mobile so they never overflow */}
+      <div className="flex flex-col gap-1.5 px-4 py-2.5 text-[11px] leading-relaxed text-gray-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
+        <span className="inline-flex items-start gap-1.5 sm:items-center">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-saffron-dark sm:mt-0" />
+          <span className="min-w-0">
+            Stopping blocks <strong>new</strong> registrations — participants
+            already inside the exam can finish.
+          </span>
         </span>
-        <span className="inline-flex items-center gap-1">
-          <Lock className="h-3.5 w-3.5 text-saffron-dark" />
-          {questionCount > 0
-            ? `${questionCount} in bank · ${EXAM_QUESTION_COUNT} per exam`
-            : "No questions published yet"}
+        <span className="inline-flex items-start gap-1.5 sm:items-center">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-saffron-dark sm:mt-0" />
+          <span className="min-w-0">
+            {questionCount > 0
+              ? `${questionCount} in bank · ${EXAM_QUESTION_COUNT} per exam`
+              : "No questions published yet"}
+          </span>
         </span>
       </div>
 

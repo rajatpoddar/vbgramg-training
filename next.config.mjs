@@ -12,6 +12,10 @@ const nextConfig = {
       "better-sqlite3",
       "@prisma/adapter-better-sqlite3",
     ],
+    // Allow the admin docx question import (server actions default to 1 MB).
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
   },
 };
 

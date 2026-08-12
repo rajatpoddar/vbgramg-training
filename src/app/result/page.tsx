@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Award, CheckCircle2, Home, XCircle } from "lucide-react";
+import { formatDateTimeIST } from "@/lib/dates";
 import { getUserById, getUserExamTotal, PASS_PERCENTAGE } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -118,17 +119,7 @@ export default async function ResultPage({
           <dl className="mt-5 grid gap-x-6 gap-y-2 border-t border-gray-200 pt-4 text-sm sm:grid-cols-2">
             <Detail label="Mobile" value={user.mobile} />
             <Detail label="Email" value={user.email} />
-            <Detail
-              label="Submitted On"
-              value={
-                user.submittedAt
-                  ? new Date(user.submittedAt).toLocaleString("en-IN", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })
-                  : "—"
-              }
-            />
+            <Detail label="Submitted On" value={formatDateTimeIST(user.submittedAt)} />
             <Detail label="Reference ID" value={user.id.slice(0, 8).toUpperCase()} />
           </dl>
 

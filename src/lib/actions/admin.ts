@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   getAdminConfigError,
@@ -12,6 +13,8 @@ import {
 } from "@/lib/admin";
 import { validateQuestion } from "@/lib/validation";
 import { setExamOpenState } from "@/lib/queries";
+import { EXAM_DURATION_SECONDS } from "@/lib/examConfig";
+import { extractDocxParagraphs, parseDocxQuestions } from "@/lib/docxParser";
 
 /**
  * Server actions for the Admin Portal
@@ -99,32 +102,70 @@ export async function setExamOpen(open: boolean): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
-/* ---------------- Interrupted-session resume approvals ---------------- */
+/* ---------------- Resume a candidate's exam ---------------- */
 
 /**
- * Admin approves a candidate's request to resume an interrupted exam.
- * Once approved, the candidate's interrupted-session screen automatically
- * continues into the exam (restoring their saved answers).
+ * One universal admin “Resume” action, used for any candidate whose exam
+ * did not end cleanly (a call interrupted them, the display turned off,
+ * the browser closed, an anti-cheat auto-submit fired by mistake, …):
+ *
+ *  - Exam still in progress (started, not submitted) → simply approves the
+ *    resume so the candidate continues with their genuine remaining time
+ *    and saved answers (no request from the candidate needed).
+ *  - Exam was submitted (by mistake) → re-opens it: the saved answers and
+ *    question set are kept, the score is cleared. If the original deadline
+ *    has not yet passed the candidate continues with the time genuinely
+ *    left; only when the deadline already passed do they get a fresh
+ *    full-duration clock.
  */
-export async function approveExamResume(
+export async function resumeUserExam(
   userId: string
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; message?: string }> {
   if (!isAdminAuthenticated()) {
-    return { ok: false };
+    return { ok: false, message: "Unauthorised." };
   }
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.submittedAt) {
-    return { ok: false };
-  }
-
-  await prisma.user.update({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
-    data: { resumeApprovedAt: new Date() },
+    select: { id: true, submittedAt: true, startedAt: true },
   });
+  if (!user) {
+    return { ok: false, message: "Candidate not found." };
+  }
+
+  const data: {
+    resumeApprovedAt: Date;
+    resumeRequestedAt: null;
+    submittedAt?: Date | null;
+    score?: number;
+    liveScore?: number;
+    startedAt?: Date;
+  } = {
+    // Skip the candidate-side resume gate: they can continue immediately.
+    resumeApprovedAt: new Date(),
+    resumeRequestedAt: null,
+  };
+
+  if (user.submittedAt) {
+    data.submittedAt = null;
+    data.score = 0;
+    data.liveScore = 0;
+    const elapsed = user.startedAt
+      ? Math.floor((Date.now() - user.startedAt.getTime()) / 1000)
+      : 0;
+    // Keep the original anchor while genuine time remains — the exam page
+    // computes the remaining clock from `startedAt`. Only a genuinely
+    // expired deadline gets a fresh full-duration clock.
+    if (!user.startedAt || elapsed >= EXAM_DURATION_SECONDS) {
+      data.startedAt = new Date();
+    }
+  }
+
+  await prisma.user.update({ where: { id: userId }, data });
 
   revalidatePath("/admin");
   revalidatePath("/exam");
+  revalidatePath("/result");
   return { ok: true };
 }
 
@@ -194,50 +235,7 @@ export async function forceEndExam(
   return { ok: true, score, total: questions.length };
 }
 
-/* ---------------- Re-open / delete a completed exam ---------------- */
-
-/**
- * Admin re-opens a candidate's exam after it was submitted — e.g. an
- * automatic submission (timer expiry or the anti-cheat auto-submit) that
- * should not have been final.
- *
- * The candidate's saved answers and question set are kept, the score is
- * cleared, and `startedAt` is reset so the candidate gets a fresh
- * full-duration clock. `resumeApprovedAt` is stamped so the candidate is
- * allowed to continue immediately without a new approval.
- */
-export async function reopenExam(
-  userId: string
-): Promise<{ ok: boolean; message?: string }> {
-  if (!isAdminAuthenticated()) {
-    return { ok: false, message: "Unauthorised." };
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true },
-  });
-  if (!user) {
-    return { ok: false, message: "Candidate not found." };
-  }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      submittedAt: null,
-      score: 0,
-      liveScore: 0,
-      startedAt: new Date(), // fresh full-duration clock
-      resumeApprovedAt: new Date(), // skip the resume gate
-      resumeRequestedAt: null,
-    },
-  });
-
-  revalidatePath("/admin");
-  revalidatePath("/exam");
-  revalidatePath("/result");
-  return { ok: true };
-}
+/* ---------------- Delete a completed exam ---------------- */
 
 /**
  * Admin deletes a candidate's record entirely. Once deleted, the candidate
@@ -274,7 +272,11 @@ export type QuestionInput = {
   correctAnswer: string;
 };
 
-type ActionResult = { ok: boolean; errors?: Record<string, string> };
+type ActionResult = {
+  ok: boolean;
+  errors?: Record<string, string>;
+  message?: string;
+};
 
 export async function createQuestion(
   input: QuestionInput
@@ -322,4 +324,161 @@ export async function deleteQuestion(id: string): Promise<ActionResult> {
   await prisma.question.delete({ where: { id } });
   revalidatePath("/admin/questions");
   return { ok: true };
+}
+
+/**
+ * Empty the entire question bank. Existing candidates' saved question sets
+ * (`sessionQuestions`) are also cleared so the next time they (re)start the
+ * exam, a fresh random set is picked from the new bank instead of pointing
+ * at deleted questions.
+ */
+export async function deleteAllQuestions(): Promise<ActionResult> {
+  if (!isAdminAuthenticated()) {
+    return { ok: false, message: "Unauthorised." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.question.deleteMany();
+    await tx.user.updateMany({ data: { sessionQuestions: Prisma.DbNull } });
+  });
+
+  revalidatePath("/admin/questions");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+/**
+ * Database cleanup: remove every registered participant. Used to reset the
+ * portal between exam rounds. Candidate sessions, answers and scores are
+ * all wiped; the question bank is untouched.
+ */
+export async function deleteAllUsers(): Promise<ActionResult> {
+  if (!isAdminAuthenticated()) {
+    return { ok: false, message: "Unauthorised." };
+  }
+
+  await prisma.user.deleteMany();
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/report");
+  return { ok: true };
+}
+
+/* ---------------- Import questions from a Word (.docx) file ---------------- */
+
+export type DocxImportResult = {
+  ok: boolean;
+  imported?: number;
+  /** Questions already present in the bank that were skipped (append mode). */
+  skippedDuplicates?: number;
+  errors?: string[];
+  message?: string;
+};
+
+/** Max accepted upload size — the official question banks are tiny. */
+const MAX_DOCX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Import MCQs straight from an uploaded .docx file (same format as
+ * `scripts/import_mcqs.py`): parse, validate, then insert. When
+ * `replace` is checked the bank is cleared first.
+ */
+export async function importQuestionsFromDocx(
+  formData: FormData
+): Promise<DocxImportResult> {
+  if (!isAdminAuthenticated()) {
+    return { ok: false, message: "Unauthorised." };
+  }
+
+  const file = formData.get("docx") as File | null;
+  const replace = formData.get("replace") === "true";
+
+  if (!file) {
+    return { ok: false, message: "No file selected." };
+  }
+  if (!/\.docx$/i.test(file.name)) {
+    return { ok: false, message: "Please upload a .docx (Word) file." };
+  }
+  if (file.size > MAX_DOCX_BYTES) {
+    return { ok: false, message: "File is too large (maximum 5 MB)." };
+  }
+
+  let paragraphs: string[];
+  try {
+    paragraphs = await extractDocxParagraphs(await file.arrayBuffer());
+  } catch {
+    return {
+      ok: false,
+      message: "Could not read the file — is it a valid .docx document?",
+    };
+  }
+  if (paragraphs.length === 0) {
+    return {
+      ok: false,
+      message: "No text found in the document. Is it a valid Word file?",
+    };
+  }
+  // Cheap decompression guard: a real question bank is a few hundred KB of
+  // text at most — anything much larger is corrupt or a zip bomb.
+  if (paragraphs.join("").length > 2_000_000) {
+    return { ok: false, message: "The document is too large to import." };
+  }
+
+  const { questions, errors } = parseDocxQuestions(paragraphs);
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      message: `${errors.length} question(s) could not be read — nothing was imported.`,
+      errors,
+    };
+  }
+  if (questions.length === 0) {
+    return { ok: false, message: "No questions found in the document." };
+  }
+
+  // In append mode, skip questions whose text already exists in the bank so
+  // re-uploading the same file cannot silently duplicate the bank.
+  let toInsert = questions;
+  let skippedDuplicates = 0;
+  if (!replace) {
+    const existing = await prisma.question.findMany({ select: { text: true } });
+    const seen = new Set(existing.map((q) => q.text.trim().toLowerCase()));
+    toInsert = [];
+    for (const q of questions) {
+      const key = q.text.trim().toLowerCase();
+      if (seen.has(key)) {
+        skippedDuplicates += 1;
+      } else {
+        seen.add(key);
+        toInsert.push(q);
+      }
+    }
+  }
+  if (toInsert.length === 0) {
+    return {
+      ok: false,
+      message:
+        "Every question in the file already exists in the bank — nothing to import.",
+      skippedDuplicates,
+    };
+  }
+
+  // Replace + insert run atomically so a failure can never leave an empty
+  // bank behind.
+  await prisma.$transaction(async (tx) => {
+    if (replace) {
+      await tx.question.deleteMany();
+      await tx.user.updateMany({ data: { sessionQuestions: Prisma.DbNull } });
+    }
+    await tx.question.createMany({
+      data: toInsert.map((q) => ({
+        text: q.text,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+      })),
+    });
+  });
+
+  revalidatePath("/admin/questions");
+  return { ok: true, imported: toInsert.length, skippedDuplicates };
 }

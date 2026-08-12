@@ -212,16 +212,6 @@ export async function getDashboardData() {
     (u) => u.score >= passThreshold
   ).length;
 
-  // Candidates whose session broke (no fresh heartbeat) and who asked to
-  // resume — waiting for the admin's approval.
-  const pendingResumes = users.filter(
-    (u) =>
-      u.startedAt !== null &&
-      u.submittedAt === null &&
-      u.resumeApprovedAt === null &&
-      u.resumeRequestedAt !== null
-  );
-
   return {
     users,
     totalRegistered: users.length,
@@ -233,7 +223,6 @@ export async function getDashboardData() {
     totalQuestions,
     examLength,
     passThreshold,
-    pendingResumes,
   };
 }
 

@@ -44,12 +44,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3926
+# Run in Indian Standard Time so `new Date()` / logs use IST.
+ENV TZ=Asia/Kolkata
 # Prisma CLI / Node may want a writable HOME for the non-root user.
 ENV HOME=/tmp
 
-# OpenSSL is required by Prisma's schema engine (used by `db push`).
+# OpenSSL is required by Prisma's schema engine (used by `db push`); tzdata
+# makes the TZ environment variable effective inside the container.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates tzdata \
   && rm -rf /var/lib/apt/lists/*
 
 # Non-root user + SQLite data directory (owned by that user so the

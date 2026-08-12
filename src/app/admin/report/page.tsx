@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Landmark } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import PrintButton from "@/components/PrintButton";
+import { formatDateLongIST } from "@/lib/dates";
 import { getReportData, PASS_PERCENTAGE } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -140,12 +141,7 @@ export default async function ReportPage() {
                 <strong>Report No.:</strong> DRDA/DEK/VB-GRAMG/{new Date().getFullYear()}/01
               </span>
               <span>
-                <strong>Date:</strong>{" "}
-                {data.generatedAt.toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                })}
+                <strong>Date:</strong> {formatDateLongIST(data.generatedAt)}
               </span>
               <span>
                 <strong>Place:</strong> Deoghar, Jharkhand

@@ -103,6 +103,122 @@ body {
 }
 
 /* ============================================================
+   Mobile usability
+   ============================================================ */
+
+/* Remove the double-tap zoom delay on interactive elements (mobile). */
+button,
+[role="button"],
+a,
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+}
+
+/*
+ * iOS Safari auto-zooms the page when an input smaller than 16px gets
+ * focus. Keeping form controls at 16px on phones means tapping a field
+ * never zooms the viewport in/out.
+ */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/*
+ * Blocks text selection and the long-press callout on touch devices.
+ * Used on the live exam screen so candidates cannot copy question text
+ * (long-press selection can trigger AI assistants on Android).
+ */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/*
+ * Responsive tables — on small screens each row becomes a stacked card
+ * with the cell's `data-label` shown as a caption, so long admin tables
+ * (participants, live status) are fully usable on a phone instead of
+ * requiring horizontal scrolling. Every <td> must carry data-label.
+ */
+@media (max-width: 767px) {
+  .responsive-table thead {
+    display: none;
+  }
+
+  .responsive-table,
+  .responsive-table tbody,
+  .responsive-table tr,
+  .responsive-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .responsive-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .responsive-table tr {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  .responsive-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px dashed #f3f4f6;
+    text-align: right;
+  }
+
+  .responsive-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .responsive-table td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6b7280;
+    text-align: left;
+  }
+
+  /* Cells flagged full-width (e.g. the action buttons column) span the
+     whole card with the label hidden — buttons stack neatly on mobile. */
+  .responsive-table td[data-fullwidth="true"] {
+    display: block;
+    text-align: center;
+  }
+
+  .responsive-table td[data-fullwidth="true"]::before {
+    display: none;
+  }
+
+  .responsive-table td[data-fullwidth="true"] > * {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+/* ============================================================
    Print Styles — Official A4 Report
    ============================================================ */
 @page {

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import PrintButton from "@/components/PrintButton";
 import ShareResultCard from "@/components/ShareResultCard";
+import { formatDateTimeIST } from "@/lib/dates";
 import { getUserById, getUserExamTotal, PASS_PERCENTAGE } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -145,17 +146,7 @@ export default async function ResultCardPage({
               label="Reference ID"
               value={user.id.slice(0, 8).toUpperCase()}
             />
-            <Detail
-              label="Submitted On"
-              value={
-                user.submittedAt
-                  ? new Date(user.submittedAt).toLocaleString("en-IN", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })
-                  : "—"
-              }
-            />
+            <Detail label="Submitted On" value={formatDateTimeIST(user.submittedAt)} />
           </dl>
         </div>
 

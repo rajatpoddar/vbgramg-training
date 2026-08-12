@@ -19,10 +19,18 @@ export const metadata: Metadata = {
     "Official online examination portal for the Viksit Bharat - G RAM G training programme, District Administration, Deoghar, Government of Jharkhand.",
 };
 
-/** Mobile-friendly viewport settings (saffron browser chrome on Android). */
+/**
+ * Mobile-friendly viewport settings (saffron browser chrome on Android).
+ *
+ * `maximumScale: 1` + `userScalable: false` disable pinch-zoom / the
+ * iOS auto-zoom that fires when an input receives focus — tapping a form
+ * field must never zoom the page in and out on a phone.
+ */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#FF9933",
 };
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { validateRegistration } from "@/lib/validation";
 import { isExamOpen } from "@/lib/queries";
+import { EXAM_DURATION_SECONDS } from "@/lib/examConfig";
 
 /**
  * Server actions used by the participant-facing flow
@@ -120,12 +121,17 @@ function sanitizeAnswers(
  * interrupted by a network failure can be resumed from where it stopped.
  * Once the candidate is actively back inside the exam, any earlier resume
  * flags are cleared — a future interruption needs fresh admin approval.
+ *
+ * Returns the authoritative `timeLeft` (computed from the server-side
+ * `startedAt` anchor) so the client can re-sync its countdown — this keeps
+ * the timer honest when the phone screen turns off or the tab runs in the
+ * background, where browser timers are throttled or paused.
  */
 export async function heartbeat(
   userId: string,
   liveScore: number,
   answers?: Record<string, string>
-): Promise<{ ended: boolean }> {
+): Promise<{ ended: boolean; timeLeft?: number }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, startedAt: true, submittedAt: true },
@@ -135,11 +141,17 @@ export async function heartbeat(
   if (!user || user.submittedAt) return { ended: true };
 
   const cleanAnswers = sanitizeAnswers(answers);
+  const startedAt = user.startedAt ?? new Date();
+  const elapsed = Math.max(
+    0,
+    Math.floor((Date.now() - startedAt.getTime()) / 1000)
+  );
+  const timeLeft = Math.max(0, EXAM_DURATION_SECONDS - elapsed);
 
   await prisma.user.update({
     where: { id: userId },
     data: {
-      startedAt: user.startedAt ?? new Date(),
+      startedAt,
       lastActiveAt: new Date(),
       liveScore: Number.isFinite(liveScore)
         ? Math.max(0, Math.floor(liveScore))
@@ -152,7 +164,7 @@ export async function heartbeat(
     },
   });
 
-  return { ended: false };
+  return { ended: false, timeLeft };
 }
 
 /**
