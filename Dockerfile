@@ -69,6 +69,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # --- Prisma runtime pieces ---
 # Copy full node_modules so prisma db push has all its dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Schema + config used by `prisma db push`
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 
 # --- Entrypoint ---
 COPY entrypoint.sh ./entrypoint.sh
