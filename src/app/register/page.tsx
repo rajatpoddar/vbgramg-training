@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CalendarDays, Clock3, Lock, MapPin } from "lucide-react";
 import RegisterForm from "@/components/RegisterForm";
 import { isExamOpen } from "@/lib/queries";
+import { EXAM_DURATION_MINUTES, EXAM_QUESTION_COUNT } from "@/lib/examConfig";
 
 export const metadata: Metadata = {
   title: "Participant Registration",
@@ -58,7 +59,8 @@ export default async function RegisterPage() {
             <p className="flex items-center gap-2.5">
               <Clock3 className="h-4 w-4 shrink-0 text-saffron-dark" />
               <span className="min-w-0 break-words">
-                <strong>Duration:</strong> 30 minutes · 30 questions
+                <strong>Duration:</strong> {EXAM_DURATION_MINUTES} minutes ·{" "}
+                {EXAM_QUESTION_COUNT} questions
               </span>
             </p>
           </div>

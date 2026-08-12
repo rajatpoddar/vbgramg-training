@@ -11,6 +11,7 @@ import {
   Unlock,
 } from "lucide-react";
 import { setExamOpen } from "@/lib/actions/admin";
+import { EXAM_QUESTION_COUNT } from "@/lib/examConfig";
 
 /**
  * ExamControlPanel — the admin's power switch for the exam window.
@@ -130,7 +131,7 @@ export default function ExamControlPanel({
         <span className="inline-flex items-center gap-1">
           <Lock className="h-3.5 w-3.5 text-saffron-dark" />
           {questionCount > 0
-            ? `${questionCount} questions ready`
+            ? `${questionCount} in bank · ${EXAM_QUESTION_COUNT} per exam`
             : "No questions published yet"}
         </span>
       </div>

@@ -214,7 +214,14 @@ export async function submitExam(
     return { ok: false, message: "Invalid answer payload." };
   }
 
-  const questions = await prisma.question.findMany();
+  // Score against the exact question set this candidate was asked. For legacy
+  // sessions created before per-session sets were stored, fall back to the
+  // whole question bank.
+  const sessionIds = user.sessionQuestions as string[] | null;
+  const questions =
+    Array.isArray(sessionIds) && sessionIds.length > 0
+      ? await prisma.question.findMany({ where: { id: { in: sessionIds } } })
+      : await prisma.question.findMany();
 
   // Recompute the score from the database copy of the answers.
   let score = 0;

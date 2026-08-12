@@ -4,15 +4,13 @@ import { redirect } from "next/navigation";
 import { Lock } from "lucide-react";
 import ExamInterface from "@/components/ExamInterface";
 import ResumeGate from "@/components/ResumeGate";
+import { EXAM_DURATION_SECONDS } from "@/lib/examConfig";
 import {
   getUserById,
-  getExamQuestions,
+  getOrCreateExamSession,
   isExamOpen,
   RESUME_GRACE_MS,
 } from "@/lib/queries";
-
-/** Exam duration: 1 minute per question (30 questions → 30:00). */
-const SECONDS_PER_QUESTION = 60;
 
 export const metadata: Metadata = {
   title: "Examination",
@@ -46,7 +44,7 @@ export default async function ExamPage({
 
   const [user, questions, examOpen] = await Promise.all([
     getUserById(userId),
-    getExamQuestions(),
+    getOrCreateExamSession(userId),
     isExamOpen(),
   ]);
 
@@ -126,7 +124,8 @@ export default async function ExamPage({
   // Remaining exam time. The clock is anchored to `startedAt` (the first time
   // the candidate began the exam), so an approved resume continues with the
   // time genuinely left — a candidate cannot refresh/resume for extra time.
-  const totalSeconds = questions.length * SECONDS_PER_QUESTION;
+  // The exam has a fixed duration (15 minutes) regardless of question count.
+  const totalSeconds = EXAM_DURATION_SECONDS;
   let initialTimeLeft = totalSeconds;
   if (user.startedAt) {
     const elapsed = Math.floor(

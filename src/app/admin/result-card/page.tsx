@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import PrintButton from "@/components/PrintButton";
 import ShareResultCard from "@/components/ShareResultCard";
-import { getUserById, getQuestionCount, PASS_PERCENTAGE } from "@/lib/queries";
+import { getUserById, getUserExamTotal, PASS_PERCENTAGE } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "Candidate Result Card",
@@ -36,10 +36,7 @@ export default async function ResultCardPage({
     redirect("/admin");
   }
 
-  const [user, totalQuestions] = await Promise.all([
-    getUserById(userId),
-    getQuestionCount(),
-  ]);
+  const user = await getUserById(userId);
 
   if (!user) {
     return (
@@ -59,6 +56,10 @@ export default async function ResultCardPage({
       </div>
     );
   }
+
+  // "Total marks" is the candidate's actual exam set (25), not the full
+  // question bank, so the percentage is computed out of what they were asked.
+  const totalQuestions = await getUserExamTotal(user);
 
   if (!user.submittedAt) {
     return (

@@ -14,8 +14,10 @@ import {
 import AdminShell from "@/components/AdminShell";
 import ApproveResumeButton from "@/components/ApproveResumeButton";
 import AutoRefresh from "@/components/AutoRefresh";
+import DeleteUserButton from "@/components/DeleteUserButton";
 import ExamControlPanel from "@/components/ExamControlPanel";
 import ForceEndButton from "@/components/ForceEndButton";
+import ResumeExamButton from "@/components/ResumeExamButton";
 import { getDashboardData, isExamOpen, RESUME_GRACE_MS } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -148,7 +150,7 @@ export default async function AdminDashboardPage() {
                       <span className="inline-flex items-center gap-1 rounded-full bg-saffron-light px-2.5 py-0.5 text-xs font-bold text-saffron-dark">
                         {u.liveScore}
                         <span className="font-medium text-gray-500">
-                          /{data.totalQuestions}
+                          /{data.examLength}
                         </span>
                       </span>
                     </td>
@@ -228,7 +230,7 @@ export default async function AdminDashboardPage() {
                         <span className="inline-flex items-center gap-1 rounded-full bg-saffron-light px-2.5 py-0.5 text-xs font-bold text-saffron-dark">
                           {u.liveScore}
                           <span className="font-medium text-gray-500">
-                            /{data.totalQuestions}
+                            /{data.examLength}
                           </span>
                         </span>
                       </td>
@@ -263,6 +265,11 @@ export default async function AdminDashboardPage() {
           <h2 className="text-sm font-semibold text-navy">
             Registered Participants ({data.totalRegistered})
           </h2>
+          <p className="mt-0.5 text-xs text-gray-500">
+            <strong>Resume</strong> re-opens a completed / auto-submitted exam
+            so the candidate can continue · <strong>Delete</strong> lets a
+            candidate whose exam is complete register and appear again.
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -276,7 +283,7 @@ export default async function AdminDashboardPage() {
                 <th className="px-4 py-2.5 font-semibold">Email</th>
                 <th className="px-4 py-2.5 text-center font-semibold">Score</th>
                 <th className="px-4 py-2.5 font-semibold">Submitted</th>
-                <th className="px-4 py-2.5 text-center font-semibold">Result Card</th>
+                <th className="px-4 py-2.5 text-center font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -318,14 +325,19 @@ export default async function AdminDashboardPage() {
                           })
                         : "Not submitted"}
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="px-4 py-2.5">
                       {u.submittedAt ? (
-                        <Link
-                          href={`/admin/result-card?userId=${u.id}`}
-                          className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-navy transition-colors hover:border-navy hover:bg-parchment"
-                        >
-                          <FileText className="h-3.5 w-3.5" /> View
-                        </Link>
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                          <Link
+                            href={`/admin/result-card?userId=${u.id}`}
+                            title="Open this candidate's printable result card"
+                            className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-navy transition-colors hover:border-navy hover:bg-parchment"
+                          >
+                            <FileText className="h-3.5 w-3.5" /> View
+                          </Link>
+                          <ResumeExamButton userId={u.id} />
+                          <DeleteUserButton userId={u.id} />
+                        </div>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>
                       )}

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { getQuestionCount, isExamOpen } from "@/lib/queries";
 import { isAdminAuthenticated } from "@/lib/admin";
+import { EXAM_DURATION_MINUTES, EXAM_QUESTION_COUNT } from "@/lib/examConfig";
 
 /**
  * Home page — official landing for the Viksit Bharat - G RAM G
@@ -34,9 +35,9 @@ export default async function HomePage() {
   ]);
 
   const examFacts = [
-    { icon: <FileQuestion className="h-5 w-5" />, label: "Total Questions", value: "30 MCQs" },
-    { icon: <BadgeCheck className="h-5 w-5" />, label: "Total Marks", value: "30 (1 each)" },
-    { icon: <Clock3 className="h-5 w-5" />, label: "Time Limit", value: "30 Minutes" },
+    { icon: <FileQuestion className="h-5 w-5" />, label: "Total Questions", value: `${EXAM_QUESTION_COUNT} MCQs` },
+    { icon: <BadgeCheck className="h-5 w-5" />, label: "Total Marks", value: `${EXAM_QUESTION_COUNT} (1 each)` },
+    { icon: <Clock3 className="h-5 w-5" />, label: "Time Limit", value: `${EXAM_DURATION_MINUTES} Minutes` },
     { icon: <MinusCircle className="h-5 w-5" />, label: "Negative Marking", value: "None" },
     { icon: <Target className="h-5 w-5" />, label: "Passing Score", value: "≥ 40%" },
   ];
@@ -50,7 +51,7 @@ export default async function HomePage() {
     {
       icon: <MonitorSmartphone className="h-6 w-6" />,
       title: "2 · Take the Exam",
-      text: "Answer 30 MCQs on your mobile or computer within 30 minutes. Full-screen, monitored session.",
+      text: `Answer ${EXAM_QUESTION_COUNT} MCQs on your mobile or computer within ${EXAM_DURATION_MINUTES} minutes. Full-screen, monitored session.`,
     },
     {
       icon: <CheckCircle2 className="h-6 w-6" />,
@@ -165,6 +166,97 @@ export default async function HomePage() {
         ))}
       </section>
 
+      {/* ---------- Instructions ---------- */}
+      <section className="gov-card mb-8 p-6 md:p-8">
+        <h3 className="gov-heading mb-1">मुख्य दिशा-निर्देश एवं शर्तें</h3>
+        <p className="mb-5 text-sm font-medium text-gray-500">
+          Exam Guidelines &amp; Terms
+        </p>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Exam facts */}
+          <div>
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-saffron-dark">
+              <Info className="h-4 w-4" /> परीक्षा निर्देश · Exam Format
+            </h4>
+            <ul className="space-y-2 text-sm text-gray-700">
+              <li className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
+                <span>
+                  <strong>कुल प्रश्न:</strong> {EXAM_QUESTION_COUNT}{" "}
+                  बहुविकल्पीय प्रश्न (MCQs) · <strong>Total:</strong>{" "}
+                  {EXAM_QUESTION_COUNT} questions
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
+                <span>
+                  <strong>कुल अंक:</strong> {EXAM_QUESTION_COUNT} अंक (प्रत्येक
+                  प्रश्न 1 अंक) · <strong>Total Marks:</strong>{" "}
+                  {EXAM_QUESTION_COUNT} (1 mark each)
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
+                <span>
+                  <strong>समय सीमा:</strong> {EXAM_DURATION_MINUTES} मिनट ·{" "}
+                  <strong>Time Limit:</strong> {EXAM_DURATION_MINUTES} minutes
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
+                <span>
+                  <strong>नेगेटिव मार्किंग:</strong> नहीं है ·{" "}
+                  <strong>Negative Marking:</strong> No negative marking
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
+                <span>
+                  उत्तीर्ण हेतु न्यूनतम <strong>40%</strong> अंक आवश्यक · Passing score:{" "}
+                  <strong>≥ 40%</strong>
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Technical rules */}
+          <div>
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-saffron-dark">
+              <ShieldCheck className="h-4 w-4" /> तकनीकी एवं सबमिशन नियम · Technical Rules
+            </h4>
+            <ul className="space-y-2 text-sm text-gray-700">
+              <li className="flex gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
+                परीक्षा के दौरान इंटरनेट कनेक्शन चालू रखें। Keep your internet
+                connection active throughout the exam.
+              </li>
+              <li className="flex gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
+                ब्राउज़र बंद न करें और पेज रीफ्रेश न करें — ऐसा करने पर परीक्षा
+                अपने-आप सबमिट हो सकती है। Don&apos;t close or refresh the browser —
+                the exam may auto-submit.
+              </li>
+              <li className="flex gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
+                टैब स्विचिंग / दूसरे ऐप पर जाने की अनुमति नहीं है। Tab switching is
+                not allowed and is monitored.
+              </li>
+              <li className="flex gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
+                समय समाप्त होते ही टेस्ट अपने-आप सबमिट हो जाएगा। The exam
+                auto-submits when the timer reaches zero.
+              </li>
+              <li className="flex gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
+                एक प्रतिभागी केवल एक बार परीक्षा दे सकता है। Only one attempt is
+                allowed per participant.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* ---------- Participant CTA ---------- */}
       <section className="gov-card mb-8 flex flex-col items-center gap-6 p-6 text-center md:flex-row md:p-8 md:text-left">
         <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-saffron-light text-saffron-dark">
@@ -176,7 +268,7 @@ export default async function HomePage() {
             Register with your official details (Name, Designation, Block,
             Mobile, Email) and immediately begin the objective examination.
             The exam runs in a monitored full-screen session —{" "}
-            <strong>please read the guidelines below first.</strong>
+            <strong>please read the guidelines above first.</strong>
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-3 md:justify-start">
             <Link
@@ -241,94 +333,6 @@ export default async function HomePage() {
             <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{s.text}</p>
           </div>
         ))}
-      </section>
-
-      {/* ---------- Instructions ---------- */}
-      <section className="gov-card p-6 md:p-8">
-        <h3 className="gov-heading mb-1">मुख्य दिशा-निर्देश एवं शर्तें</h3>
-        <p className="mb-5 text-sm font-medium text-gray-500">
-          Exam Guidelines &amp; Terms
-        </p>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Exam facts */}
-          <div>
-            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-saffron-dark">
-              <Info className="h-4 w-4" /> परीक्षा निर्देश · Exam Format
-            </h4>
-            <ul className="space-y-2 text-sm text-gray-700">
-              <li className="flex gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
-                <span>
-                  <strong>कुल प्रश्न:</strong> 30 बहुविकल्पीय प्रश्न (MCQs) ·{" "}
-                  <strong>Total:</strong> 30 questions
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
-                <span>
-                  <strong>कुल अंक:</strong> 30 अंक (प्रत्येक प्रश्न 1 अंक) ·{" "}
-                  <strong>Total Marks:</strong> 30 (1 mark each)
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
-                <span>
-                  <strong>समय सीमा:</strong> 30 मिनट · <strong>Time Limit:</strong> 30 minutes
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
-                <span>
-                  <strong>नेगेटिव मार्किंग:</strong> नहीं है ·{" "}
-                  <strong>Negative Marking:</strong> No negative marking
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-indiaGreen" />
-                <span>
-                  उत्तीर्ण हेतु न्यूनतम <strong>40%</strong> अंक आवश्यक · Passing score:{" "}
-                  <strong>≥ 40%</strong>
-                </span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Technical rules */}
-          <div>
-            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-saffron-dark">
-              <ShieldCheck className="h-4 w-4" /> तकनीकी एवं सबमिशन नियम · Technical Rules
-            </h4>
-            <ul className="space-y-2 text-sm text-gray-700">
-              <li className="flex gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
-                परीक्षा के दौरान इंटरनेट कनेक्शन चालू रखें। Keep your internet
-                connection active throughout the exam.
-              </li>
-              <li className="flex gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
-                ब्राउज़र बंद न करें और पेज रीफ्रेश न करें — ऐसा करने पर परीक्षा
-                अपने-आप सबमिट हो सकती है। Don&apos;t close or refresh the browser —
-                the exam may auto-submit.
-              </li>
-              <li className="flex gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
-                टैब स्विचिंग / दूसरे ऐप पर जाने की अनुमति नहीं है। Tab switching is
-                not allowed and is monitored.
-              </li>
-              <li className="flex gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
-                समय समाप्त होते ही टेस्ट अपने-आप सबमिट हो जाएगा। The exam
-                auto-submits when the timer reaches zero.
-              </li>
-              <li className="flex gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
-                एक प्रतिभागी केवल एक बार परीक्षा दे सकता है। Only one attempt is
-                allowed per participant.
-              </li>
-            </ul>
-          </div>
-        </div>
       </section>
     </div>
   );

@@ -110,6 +110,12 @@ def resolve_correct_answer(question: dict) -> str | None:
 
 
 def main() -> int:
+    # Windows consoles default to cp1252, which cannot encode the ✓ checkmark
+    # (and some Hindi characters) — reconfigure stdout so the script never
+    # crashes on the final status line after a successful import.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Import DRDA MCQs into SQLite")
     parser.add_argument(
         "docx",

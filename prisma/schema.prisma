@@ -38,6 +38,10 @@ model User {
   // Last-known selected answers (questionId → chosen option), saved via the
   // periodic heartbeat so a resumed candidate continues where they left off.
   answers Json?
+  // The exact question set this candidate was asked (array of question IDs),
+  // chosen randomly from the bank when the session is created. Persisted so a
+  // resumed exam serves the same questions and scoring uses the same set.
+  sessionQuestions Json?
 
   createdAt DateTime  @default(now()) // Registration timestamp
 

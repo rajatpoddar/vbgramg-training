@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Award, CheckCircle2, Home, XCircle } from "lucide-react";
-import {
-  getUserById,
-  getQuestionCount,
-  PASS_PERCENTAGE,
-} from "@/lib/queries";
+import { getUserById, getUserExamTotal, PASS_PERCENTAGE } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "Result",
@@ -24,7 +20,6 @@ export default async function ResultPage({
 }) {
   const userId = searchParams.userId;
   const user = userId ? await getUserById(userId) : null;
-  const totalQuestions = await getQuestionCount();
 
   if (!user) {
     return (
@@ -36,6 +31,10 @@ export default async function ResultPage({
       />
     );
   }
+
+  // "Total questions" is the candidate's actual exam set (25), not the full
+  // question bank, so the percentage is computed out of what they were asked.
+  const totalQuestions = await getUserExamTotal(user);
 
   // Participant registered but never submitted — allow resuming the exam.
   if (!user.submittedAt) {

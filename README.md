@@ -17,6 +17,10 @@ Government of Jharkhand.
 ### Candidate side
 - **Registration** — Name, Designation, Block, Mobile, Email (all mandatory,
   validated on both client and server).
+- **Exam format** — every candidate is asked **25 MCQs** with a fixed
+  **15-minute** duration. If the question bank holds more than 25 questions,
+  each candidate gets a randomly selected set of 25, fixed per session so a
+  resumed exam asks the same questions and scoring stays consistent.
 - **Anti-cheat (low-level)** — the exam runs in full-screen; switching tabs,
   losing window focus, or exiting full-screen raises a strictly-worded modal
   warning. **Three violations auto-submit the exam.**
@@ -28,7 +32,11 @@ Government of Jharkhand.
 
 ### Admin side (protected by password + session cookie)
 - **Dashboard** — aggregate stats + full table of registered candidates and
-  scores.
+  scores. Completed exams show **Resume** (re-open an auto-submitted / finished
+  exam so the candidate can continue with their saved answers and a fresh
+  clock) and **Delete** (remove the candidate so they can register again and
+  take the exam afresh) actions; live sessions have an **End** (force-submit)
+  action.
 - **Question Manager** — add / edit / delete MCQ questions (4 options, one
   marked correct).
 - **Print-Ready Analytics Report** — A4-formatted (`@media print`) with an

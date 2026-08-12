@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { heartbeat, submitExam } from "@/lib/actions/exam";
+import { EXAM_DURATION_MINUTES, EXAM_DURATION_SECONDS } from "@/lib/examConfig";
 import type { ExamQuestion } from "@/lib/queries";
 
 type Props = {
@@ -32,9 +33,6 @@ type Phase = "start" | "exam" | "submitting";
 
 /** Maximum number of anti-cheat violations before auto-submission. */
 const MAX_STRIKES = 3;
-
-/** Exam duration: 1 minute per question (30 questions → 30:00). */
-const SECONDS_PER_QUESTION = 60;
 
 /** How often the exam client reports its live status to the server. */
 const HEARTBEAT_INTERVAL_MS = 20_000;
@@ -86,7 +84,7 @@ export default function ExamInterface({
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(
-    initialTimeLeft ?? questions.length * SECONDS_PER_QUESTION
+    initialTimeLeft ?? EXAM_DURATION_SECONDS
   );
   // Candidate must tick the consent declaration before the exam can start.
   const [consent, setConsent] = useState(false);
@@ -373,10 +371,9 @@ export default function ExamInterface({
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-saffron-dark" />
             <span className="min-w-0 flex-1 break-words">
               You have{" "}
-              <strong>{Math.round((questions.length * SECONDS_PER_QUESTION) / 60)} minutes</strong>{" "}
-              to complete the exam. The timer starts immediately and runs
-              continuously — when it reaches zero the exam is submitted
-              automatically.
+              <strong>{EXAM_DURATION_MINUTES} minutes</strong> to complete the
+              exam. The timer starts immediately and runs continuously — when
+              it reaches zero the exam is submitted automatically.
             </span>
           </li>
           <li className="flex gap-2">

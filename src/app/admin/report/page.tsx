@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 export default async function ReportPage() {
   const data = await getReportData();
 
-  const passThreshold = Math.ceil((data.totalQuestions * PASS_PERCENTAGE) / 100);
+  const passThreshold = Math.ceil((data.examLength * PASS_PERCENTAGE) / 100);
   const avgScore =
     data.submitted > 0
       ? Math.round(
@@ -164,7 +164,7 @@ export default async function ReportPage() {
               { label: "Submitted", value: data.submitted },
               { label: "Avg. Score", value: avgScore },
               { label: `Passed (≥${passThreshold})`, value: passCount },
-              { label: "Questions", value: data.totalQuestions },
+              { label: "Questions", value: data.examLength },
             ].map((s) => (
               <div key={s.label} className="bg-white px-2 py-2">
                 <p className="text-lg font-bold text-navy">{s.value}</p>

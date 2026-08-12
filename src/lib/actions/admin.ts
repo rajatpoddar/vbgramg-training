@@ -145,7 +145,12 @@ export async function forceEndExam(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, submittedAt: true, answers: true },
+    select: {
+      id: true,
+      submittedAt: true,
+      answers: true,
+      sessionQuestions: true,
+    },
   });
   if (!user) {
     return { ok: false, message: "Candidate not found." };
@@ -154,8 +159,14 @@ export async function forceEndExam(
     return { ok: false, message: "This exam has already been submitted." };
   }
 
-  // Score from the candidate's last-known saved answers (server-computed).
-  const questions = await prisma.question.findMany();
+  // Score from the candidate's last-known saved answers (server-computed),
+  // against the exact question set they were asked (session set, or the whole
+  // bank for legacy sessions created before session sets were stored).
+  const sessionIds = user.sessionQuestions as string[] | null;
+  const questions =
+    Array.isArray(sessionIds) && sessionIds.length > 0
+      ? await prisma.question.findMany({ where: { id: { in: sessionIds } } })
+      : await prisma.question.findMany();
   const saved = (user.answers ?? {}) as Record<string, unknown>;
   let score = 0;
   for (const question of questions) {
@@ -181,6 +192,78 @@ export async function forceEndExam(
   revalidatePath("/admin");
   revalidatePath("/admin/report");
   return { ok: true, score, total: questions.length };
+}
+
+/* ---------------- Re-open / delete a completed exam ---------------- */
+
+/**
+ * Admin re-opens a candidate's exam after it was submitted — e.g. an
+ * automatic submission (timer expiry or the anti-cheat auto-submit) that
+ * should not have been final.
+ *
+ * The candidate's saved answers and question set are kept, the score is
+ * cleared, and `startedAt` is reset so the candidate gets a fresh
+ * full-duration clock. `resumeApprovedAt` is stamped so the candidate is
+ * allowed to continue immediately without a new approval.
+ */
+export async function reopenExam(
+  userId: string
+): Promise<{ ok: boolean; message?: string }> {
+  if (!isAdminAuthenticated()) {
+    return { ok: false, message: "Unauthorised." };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!user) {
+    return { ok: false, message: "Candidate not found." };
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      submittedAt: null,
+      score: 0,
+      liveScore: 0,
+      startedAt: new Date(), // fresh full-duration clock
+      resumeApprovedAt: new Date(), // skip the resume gate
+      resumeRequestedAt: null,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/exam");
+  revalidatePath("/result");
+  return { ok: true };
+}
+
+/**
+ * Admin deletes a candidate's record entirely. Once deleted, the candidate
+ * can register again (same email) and take the exam fresh — used to let a
+ * candidate whose exam is complete appear again.
+ */
+export async function deleteUserExam(
+  userId: string
+): Promise<{ ok: boolean; message?: string }> {
+  if (!isAdminAuthenticated()) {
+    return { ok: false, message: "Unauthorised." };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!user) {
+    return { ok: false, message: "Candidate not found." };
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/report");
+  return { ok: true };
 }
 
 /* ---------------- Question Manager CRUD ---------------- */
