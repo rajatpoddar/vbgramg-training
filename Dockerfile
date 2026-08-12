@@ -67,19 +67,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # --- Prisma runtime pieces ---
-# 1) SQLite driver (native better-sqlite3 binding).
-COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
-# 2) Full @prisma scope: client runtime, adapter, CLI engines (db push).
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# 3) Prisma CLI itself (entrypoint runs `prisma db push` on startup).
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-# 4) dotenv — loaded by prisma.config.ts.
-COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
-# 5) effect — required by @prisma/config
-COPY --from=builder /app/node_modules/effect ./node_modules/effect
-# 5) Schema + config used by `prisma db push`.
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+# Copy full node_modules so prisma db push has all its dependencies
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # --- Entrypoint ---
 COPY entrypoint.sh ./entrypoint.sh
