@@ -130,27 +130,72 @@ function sanitizeAnswers(
  * `startedAt` anchor) so the client can re-sync its countdown — this keeps
  * the timer honest when the phone screen turns off or the tab runs in the
  * background, where browser timers are throttled or paused.
- */
-export async function heartbeat(
-  userId: string,
-  liveScore: number,
-  answers?: Record<string, string>
-): Promise<{ ended: boolean; timeLeft?: number }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, startedAt: true, submittedAt: true },
-  });
-  // `ended` tells the exam client that the session is over (e.g. the admin
-  // force-ended it) so it can redirect the candidate to their result page.
-  if (!user || user.submittedAt) return { ended: true };
-
-  const cleanAnswers = sanitizeAnswers(answers);
-  const startedAt = user.startedAt ?? new Date();
-  const elapsed = Math.max(
-    0,
-    Math.floor((Date.now() - startedAt.getTime()) / 1000)
-  );
-  const timeLeft = Math.max(0, EXAM_DURATION_SECONDS - elapsed);
+ */      export async function heartbeat(
+        userId: string,
+        liveScore: number,
+        answers?: Record<string, string>
+      ): Promise<{ ended: boolean; timeLeft?: number }> {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            startedAt: true,
+            submittedAt: true,
+            answers: true,
+            sessionQuestions: true,
+          },
+        });
+        // `ended` tells the exam client that the session is over (e.g. the admin
+        // force-ended it) so it can redirect the candidate to their result page.
+        if (!user || user.submittedAt) return { ended: true };
+      
+        const cleanAnswers = sanitizeAnswers(answers);
+        const startedAt = user.startedAt ?? new Date();
+        const elapsed = Math.max(
+          0,
+          Math.floor((Date.now() - startedAt.getTime()) / 1000)
+        );
+        const timeLeft = Math.max(0, EXAM_DURATION_SECONDS - elapsed);
+      
+        // Time's up and the exam was never submitted (the browser tab died mid-
+        // submit, the manual submit failed, etc.) → finalise server-side from the
+        // last persisted answers so the candidate is never left permanently
+        // "stuck". The client treats `ended: true` as "go to your result page".
+        // (Participants who resumed via mobile login after the clock ran out get
+        // a fresh window — `startedAt` was reset there, so this check passes them.)
+        if (elapsed >= EXAM_DURATION_SECONDS) {
+          const sessionIds = user.sessionQuestions as string[] | null;
+          const questions =
+            Array.isArray(sessionIds) && sessionIds.length > 0
+              ? await prisma.question.findMany({
+                  where: { id: { in: sessionIds } },
+                })
+              : await prisma.question.findMany();
+          const storedAnswers = (user.answers ?? {}) as Record<string, string>;
+          let score = 0;
+          for (const question of questions) {
+            const given = storedAnswers[question.id];
+            if (
+              given &&
+              given.trim().toLowerCase() ===
+                question.correctAnswer.trim().toLowerCase()
+            ) {
+              score += 1;
+            }
+          }
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              score,
+              submittedAt: new Date(),
+              resumeRequestedAt: null,
+              resumeApprovedAt: null,
+            },
+          });
+          revalidatePath("/admin");
+          revalidatePath("/admin/report");
+          return { ended: true };
+        }
 
   await prisma.user.update({
     where: { id: userId },

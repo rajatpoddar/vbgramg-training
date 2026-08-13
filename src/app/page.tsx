@@ -1,8 +1,9 @@
-import Link from "next/link";
-import {
-  AlertCircle,
-  ArrowRight,
-  BadgeCheck,
+      import Link from "next/link";
+      import {
+        AlertCircle,
+        ArrowRight,
+        Award,
+        BadgeCheck,
   CalendarDays,
   CheckCircle2,
   ClipboardList,
@@ -275,24 +276,26 @@ export default async function HomePage() {
             examination.
             The exam runs in a monitored full-screen session —{" "}
             <strong>please read the guidelines above first.</strong>
-          </p>
-          <div className="mt-4 flex flex-wrap justify-center gap-3 md:justify-start">
-            <Link
-              href="/register"
-              className="btn-primary"
-              aria-disabled={!examOpen}
-            >
-              {examOpen ? (
-                <>
-                  Register &amp; Start Exam <ArrowRight className="h-4 w-4" />
-                </>
-              ) : (
-                <>
-                  <Lock className="h-4 w-4" /> View Registration Status
-                </>
-              )}
-            </Link>
-          </div>
+          </p>                <div className="mt-4 flex flex-wrap justify-center gap-3 md:justify-start">
+                  <Link
+                    href="/register"
+                    className="btn-primary"
+                    aria-disabled={!examOpen}
+                  >
+                    {examOpen ? (
+                      <>
+                        Register &amp; Start Exam <ArrowRight className="h-4 w-4" />
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-4 w-4" /> View Registration Status
+                      </>
+                    )}
+                  </Link>
+                  <Link href="/mobile-login" className="btn-outline">
+                    <Award className="h-4 w-4" /> Get Certificate / Resume Exam
+                  </Link>
+                </div>
           {!examOpen && (
             <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-red-600">
               <AlertCircle className="h-3.5 w-3.5" />

@@ -271,3 +271,160 @@ label {
     display: table-header-group; /* repeat header on each printed page */
   }
 }
+
+/* ============================================================
+   Participation Certificate — A4 Landscape
+   ============================================================ */
+@page certificate-landscape {
+  size: A4 landscape;
+  margin: 0;
+}
+
+/* The printable sheet: fixed A4-landscape proportions so the screen
+   preview matches the paper output exactly. The certificate page opts in
+   via style="page: certificate-landscape" on the sheet. */
+.certificate-sheet {
+  page: certificate-landscape;
+  width: 297mm;
+  height: 210mm;
+  margin: 0 auto;
+  background: #ffffff;
+  overflow: hidden;
+  position: relative;
+}
+
+.certificate-frame {
+  position: absolute;
+  inset: 5mm;
+  border: 1.2mm solid #1a5c2a;
+  outline: 0.5mm solid #f4a41a;
+  outline-offset: 1.2mm;
+  background: #fffdf5;
+}
+
+.certificate-frame-inner {
+  position: absolute;
+  inset: 4mm;
+  border: 0.4mm solid #d8a01a;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tricolor bands — the Indian flag in the government style. */
+.cert-tricolor {
+  height: 4.5mm;
+  display: flex;
+}
+.cert-tricolor .saffron {
+  flex: 1;
+  background: #ff9933;
+}
+.cert-tricolor .white {
+  flex: 1;
+  background: #ffffff;
+}
+.cert-tricolor .green {
+  flex: 1;
+  background: #138808;
+}
+
+.certificate-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 6mm 12mm 7mm;
+}
+
+.cert-title-line {
+  font-size: 3.6mm;
+  letter-spacing: 0.6mm;
+  text-transform: uppercase;
+  color: #14532d;
+  font-weight: 700;
+}
+
+.cert-title-sub {
+  font-size: 2.8mm;
+  color: #b45309;
+  letter-spacing: 0.4mm;
+  text-transform: uppercase;
+}
+
+.cert-kicker {
+  font-size: 3.1mm;
+  letter-spacing: 0.8mm;
+  text-transform: uppercase;
+  color: #14532d;
+  font-weight: 600;
+}
+
+.cert-hindi {
+  font-size: 3.2mm;
+  color: #78350f;
+}
+
+.cert-intro {
+  font-size: 3.4mm;
+  color: #374151;
+}
+
+.cert-name {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 9mm;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: 0.3mm;
+  line-height: 1.15;
+}
+
+.cert-details {
+  font-size: 3.8mm;
+  color: #374151;
+  font-weight: 500;
+}
+
+.cert-body {
+  max-width: 235mm;
+  font-size: 3.3mm;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.cert-footer {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8mm;
+}
+
+.cert-footer-col {
+  flex: 1;
+  text-align: center;
+  font-size: 3mm;
+  color: #374151;
+}
+
+.cert-signature-line {
+  margin-top: 1mm;
+  padding-top: 1mm;
+  border-top: 0.3mm solid #4b5563;
+  font-size: 3mm;
+  font-weight: 600;
+  color: #111827;
+}
+
+@media print {
+  /* The certificate page is the only thing on paper — no toolbar, no
+     chrome, and the sheet fills the page exactly. */
+  .certificate-sheet {
+    margin: 0;
+    box-shadow: none !important;
+  }
+  .certificate-frame {
+    inset: 0;
+  }
+}

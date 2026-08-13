@@ -121,13 +121,14 @@ export default async function ResultPage({
             <Detail label="Email" value={user.email ?? "—"} />
             <Detail label="Submitted On" value={formatDateTimeIST(user.submittedAt)} />
             <Detail label="Reference ID" value={user.id.slice(0, 8).toUpperCase()} />
-          </dl>
-
-          <div className="mt-6 flex justify-center">
-            <Link href="/" className="btn-outline">
-              <Home className="h-4 w-4" /> Back to Home
-            </Link>
-          </div>
+          </dl>                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <Link href={`/certificate?userId=${user.id}`} className="btn-primary">
+                    <Award className="h-4 w-4" /> Download Certificate
+                  </Link>
+                  <Link href="/" className="btn-outline">
+                    <Home className="h-4 w-4" /> Back to Home
+                  </Link>
+                </div>
         </div>
       </div>
 

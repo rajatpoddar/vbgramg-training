@@ -151,25 +151,52 @@ export default function ExamInterface({
   /**
    * Submit the exam (used by both the manual button and the 3rd-strike
    * auto-submit). Score is recomputed server-side for integrity.
+   *
+   * Retry up to 3 times with a short backoff so a transient network blip or
+   * a slow NAS response does not strand the candidate on the "submitting"
+   * screen. If the server says the exam is already submitted (e.g. the
+   * server-side auto-finalise in the heartbeat ran first), just go to the
+   * result page. If every attempt fails, return to the exam with a clear
+   * error and let the candidate tap Submit again.
    */
   const finalizeExam = useCallback(
     async () => {
       if (submittingRef.current) return;
       submittingRef.current = true;
       setPhase("submitting");
-      try {
-        const res = await submitExam(userId, answersRef.current);
-        if (res.ok) {
-          router.replace(`/result?userId=${userId}`);
-        } else {
+
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const res = await submitExam(userId, answersRef.current);
+          if (res.ok) {
+            router.replace(`/result?userId=${userId}`);
+            return;
+          }
+          // Already submitted (e.g. the server auto-finalised it when the
+          // clock ran out) → the exam is over, take them to their result.
+          if (res.message && /already/i.test(res.message)) {
+            router.replace(`/result?userId=${userId}`);
+            return;
+          }
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, 1000 * attempt));
+            continue;
+          }
           submittingRef.current = false;
           setPhase("exam");
           setError(res.message ?? "Unable to submit the exam. Please try again.");
+          return;
+        } catch {
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, 1000 * attempt));
+            continue;
+          }
+          submittingRef.current = false;
+          setPhase("exam");
+          setError("Network error while submitting. Please try again.");
+          return;
         }
-      } catch {
-        submittingRef.current = false;
-        setPhase("exam");
-        setError("Network error while submitting. Please try again.");
       }
     },
     [router, userId]
