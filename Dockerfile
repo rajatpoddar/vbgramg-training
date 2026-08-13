@@ -69,6 +69,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3926
+# Docker injects a HOSTNAME env var (the container id); the Next.js
+# standalone server binds to that hostname instead of 0.0.0.0, which
+# breaks the container healthcheck (localhost:3926 refused) and any
+# other in-container networking. Pin it to all interfaces.
+ENV HOSTNAME=0.0.0.0
 # Run in Indian Standard Time so `new Date()` / logs use IST.
 ENV TZ=Asia/Kolkata
 # Prisma CLI / Node may want a writable HOME for the non-root user.
