@@ -2,10 +2,12 @@
 # Dockerfile — Viksit Bharat - G RAM G Examination Portal
 # ------------------------------------------------------------
 # Multi-stage build:
-#   deps    → installs npm dependencies (with Prisma postinstall)
-#   builder → prisma generate + next build (standalone output)
-#   runner  → minimal image: standalone server + SQLite driver
-#             + Prisma CLI (for `db push` on container start)
+#   deps      → installs ALL npm dependencies (with Prisma postinstall)
+#   deps-prod → installs ONLY production dependencies (lean node_modules
+#               for the runner — no typescript/eslint/tailwind/...)
+#   builder   → prisma generate + next build (standalone output)
+#   runner    → minimal image: standalone server + SQLite driver
+#               + Prisma CLI (for `db push` on container start)
 # ============================================================
 
 # ---------- Stage 1: dependencies ----------
@@ -27,6 +29,29 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 RUN npm ci
+
+# ---------- Stage 1b: production-only dependencies (runtime) ----------
+# Same platform as the runner (node:22-slim), so the native better-sqlite3
+# binding built here is ABI-compatible with the one the app runs on.
+FROM node:22-slim AS deps-prod
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+# The postinstall script runs `prisma generate`, so a (placeholder)
+# DATABASE_URL must be present — no real DB connection is made.
+ENV DATABASE_URL="file:./prisma/dev.db"
+
+# better-sqlite3 is a native addon — node-gyp needs python3 + build tools
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+# Production-only install: prisma CLI + dotenv (imported by prisma.config.ts)
+# are runtime deps now (see package.json), so `db push` works without the
+# full dev toolchain.
+RUN npm ci --omit=dev
 
 # ---------- Stage 2: build the application ----------
 FROM node:22-slim AS builder
@@ -70,8 +95,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # --- Prisma runtime pieces ---
-# Copy full node_modules so prisma db push has all its dependencies
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Copy ONLY the production dependencies (prisma CLI + dotenv + app deps).
+# The dev toolchain (typescript, eslint, tailwind, ...) is not needed at
+# runtime — keeping this layer small makes builds much faster.
+COPY --from=deps-prod --chown=nextjs:nodejs /app/node_modules ./node_modules
 # Schema + config used by `prisma db push`
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
