@@ -19,7 +19,9 @@ services:
     container_name: viksit-bharat-g-ram-g-exam
     restart: unless-stopped
     ports:
-      - "3926:3926"
+      # Host port 3927 forwards to the container's 3926, so the portal
+      # is now reachable at http://localhost:3927 (3926 stays internal).
+      - "3927:3926"
     environment:
       # Absolute path inside the container, on the persistent volume.
       DATABASE_URL: "file:/data/exam.db"
