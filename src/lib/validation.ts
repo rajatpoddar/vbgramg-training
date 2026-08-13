@@ -44,7 +44,8 @@ export function validateRegistration(input: {
   if (!isValidMobile(input.mobile)) {
     errors.mobile = "Enter a valid 10-digit mobile number.";
   }
-  if (!isValidEmail(input.email)) {
+  // Email is optional — only validate when the participant provides one.
+  if (input.email.trim() && !isValidEmail(input.email)) {
     errors.email = "Enter a valid email address.";
   }
 

@@ -141,7 +141,7 @@ export default async function ResultCardPage({
             <Detail label="Designation" value={user.designation} />
             <Detail label="Block" value={user.block} />
             <Detail label="Mobile" value={user.mobile} />
-            <Detail label="Email" value={user.email} />
+            <Detail label="Email" value={user.email ?? "—"} />
             <Detail
               label="Reference ID"
               value={user.id.slice(0, 8).toUpperCase()}

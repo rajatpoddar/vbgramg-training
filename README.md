@@ -15,8 +15,8 @@ Government of Jharkhand.
 ## Features
 
 ### Candidate side
-- **Registration** — Name, Designation, Block, Mobile, Email (all mandatory,
-  validated on both client and server).
+- **Registration** — Name, Designation, Block, Mobile (mandatory) and Email
+  (optional), validated on both client and server.
 - **Exam format** — every candidate is asked **25 MCQs** with a fixed
   **15-minute** duration. If the question bank holds more than 25 questions,
   each candidate gets a randomly selected set of 25, fixed per session so a
@@ -29,6 +29,13 @@ Government of Jharkhand.
   updates immediately and questions lock after answering.
 - **Result page** — final server-computed score, percentage, and pass/fail
   status (pass ≥ 40%).
+
+### Session Presentations
+- Drop `.ppt` / `.pptx` files into `public/ppt/` and they appear automatically
+  at the bottom of the home page (just above the footer), sorted by filename.
+- Embeds are **lazy-loaded** (each presentation loads only when scrolled into
+  view via the Microsoft Office Online viewer), so large slide decks never
+  slow down page loads.
 
 ### Admin side (protected by password + session cookie)
 - **Dashboard** — aggregate stats + full table of registered candidates and
@@ -120,6 +127,7 @@ docker compose ps
 | `ADMIN_PASSWORD` | Admin Portal login password (**change in production**) |
 | `ADMIN_TOKEN` | Random token stored in the httpOnly admin session cookie (**change in production**) |
 | `COOKIE_SECURE` | `true` only when served over HTTPS; `false` on plain-HTTP NAS setups |
+| `NEXT_PUBLIC_SITE_URL` | Optional: public base URL for the PPT embed links (auto-derived from the request when unset) |
 
 ---
 
@@ -141,13 +149,16 @@ src/
       report/          # Print-ready analytics report
   components/
     Header / Footer / AdminShell / RegisterForm / ExamInterface /
-    AdminLoginForm / QuestionManager / PrintButton
+    AdminLoginForm / QuestionManager / PrintButton / PptLibrary
   lib/
     prisma.ts          # Prisma client singleton (SQLite driver adapter)
     queries.ts         # Server-only query layer
     actions/           # Server actions (exam.ts, admin.ts)
     admin.ts           # Admin session helpers
     validation.ts      # Shared form validation
+    presentations.ts   # Discovers PPTs in public/ppt/ for the home page
+  public/
+    ppt/               # Drop .pptx files here — they appear on the site
 middleware.ts          # Protects /admin/* (Edge runtime, cookie check)
 Dockerfile / docker-compose.yml / entrypoint.sh
 ```
@@ -158,7 +169,8 @@ Dockerfile / docker-compose.yml / entrypoint.sh
   sends the selected answers, never a trusted score.
 - `submittedAt` is stamped on submission; a submitted candidate cannot re-take
   the exam (server-guarded). A candidate whose session was interrupted (e.g.
-  browser crash) can re-register with the same email and resume.
+  browser crash) can re-register with the same email (or mobile, when no email
+  was provided) and resume.
 - The admin session uses an **httpOnly** cookie compared against `ADMIN_TOKEN`;
   all `/admin/*` routes are protected by Edge middleware.
 - **Admin login is rate-limited** (5 failed attempts → 5-minute lockout) and

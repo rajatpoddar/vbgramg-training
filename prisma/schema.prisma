@@ -21,7 +21,7 @@ model User {
   designation String // e.g. Panchayat Sewak, BDO Staff, etc.
   block       String // Administrative block in Deoghar district
   mobile      String // 10-digit mobile number
-  email       String // Official/personal email address
+  email       String? // Optional — official/personal email address
   score       Int       @default(0) // FINAL score — server-computed on submission
   submittedAt DateTime? // When the candidate submitted the exam
 

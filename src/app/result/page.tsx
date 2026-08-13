@@ -118,7 +118,7 @@ export default async function ResultPage({
           {/* Participant details */}
           <dl className="mt-5 grid gap-x-6 gap-y-2 border-t border-gray-200 pt-4 text-sm sm:grid-cols-2">
             <Detail label="Mobile" value={user.mobile} />
-            <Detail label="Email" value={user.email} />
+            <Detail label="Email" value={user.email ?? "—"} />
             <Detail label="Submitted On" value={formatDateTimeIST(user.submittedAt)} />
             <Detail label="Reference ID" value={user.id.slice(0, 8).toUpperCase()} />
           </dl>

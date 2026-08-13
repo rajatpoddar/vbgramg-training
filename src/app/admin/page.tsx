@@ -325,7 +325,7 @@ export default async function AdminDashboardPage() {
                       {u.mobile}
                     </td>
                     <td data-label="Email" className="px-4 py-2.5 text-gray-600">
-                      {u.email}
+                      {u.email || "—"}
                     </td>
                     <td data-label="Score" className="px-4 py-2.5 text-center">
                       {u.submittedAt ? (

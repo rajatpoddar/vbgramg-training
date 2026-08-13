@@ -46,15 +46,19 @@ export async function registerUser(
   //    → reuse the same record so the participant can resume the exam instead
   //    of being stranded (even if the window is temporarily closed, the exam
   //    page still permits in-progress sessions to continue).
+  //
+  // Email is optional, so when the participant did not provide one, the
+  // mobile number (also unique per participant) is used for the check.
   const existing = await prisma.user.findFirst({
-    where: { email: input.email },
+    where: input.email
+      ? { email: input.email }
+      : { mobile: input.mobile },
   });
   if (existing) {
     if (existing.submittedAt) {
       return {
-        errors: {
-          email: "This email has already registered and submitted the exam.",
-        },
+        message:
+          "This participant has already registered and submitted the exam. Only one attempt is allowed per participant.",
       };
     }
     return { ok: true, userId: existing.id };
@@ -77,7 +81,7 @@ export async function registerUser(
         designation: input.designation,
         block: input.block,
         mobile: input.mobile,
-        email: input.email,
+        email: input.email || null,
       },
     });
     return { ok: true, userId: user.id };

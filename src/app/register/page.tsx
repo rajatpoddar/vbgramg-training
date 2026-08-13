@@ -80,9 +80,10 @@ export default async function RegisterPage() {
       <div className="gov-card p-6 md:p-8">
         <h1 className="gov-heading">Participant Registration</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Please fill in your official details. All fields are mandatory. Upon
-          successful registration you will be taken to the examination
-          interface immediately.
+          Please fill in your official details. Fields marked{" "}
+          <span className="text-red-600">*</span> are mandatory; email is
+          optional. Upon successful registration you will be taken to the
+          examination interface immediately.
         </p>
 
         <div className="mt-6 border-t border-gray-200 pt-6">

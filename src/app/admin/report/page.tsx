@@ -199,7 +199,7 @@ export default async function ReportPage() {
                       <td className="border border-gray-400 px-3 py-2">{u.designation}</td>
                       <td className="border border-gray-400 px-3 py-2">{u.block}</td>
                       <td className="border border-gray-400 px-3 py-2">{u.mobile}</td>
-                      <td className="border border-gray-400 px-3 py-2">{u.email}</td>
+                      <td className="border border-gray-400 px-3 py-2">{u.email || "—"}</td>
                       <td className="border border-gray-400 px-3 py-2 text-center">
                         {u.submittedAt ? (
                           <span className={u.score >= passThreshold ? "font-bold text-indiaGreen-dark" : "font-bold text-red-700"}>

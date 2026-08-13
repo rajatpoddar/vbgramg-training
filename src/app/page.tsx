@@ -20,6 +20,8 @@ import {
 import { getQuestionCount, isExamOpen } from "@/lib/queries";
 import { isAdminAuthenticated } from "@/lib/admin";
 import { EXAM_DURATION_MINUTES, EXAM_QUESTION_COUNT } from "@/lib/examConfig";
+import { getPresentations } from "@/lib/presentations";
+import PptLibrary from "@/components/PptLibrary";
 
 /**
  * Home page — official landing for the Viksit Bharat - G RAM G
@@ -34,6 +36,9 @@ export default async function HomePage() {
     isAdminAuthenticated(),
   ]);
 
+  // Training PPTs dropped into public/ppt/ — shown at the bottom of the page.
+  const presentations = getPresentations();
+
   const examFacts = [
     { icon: <FileQuestion className="h-5 w-5" />, label: "Total Questions", value: `${EXAM_QUESTION_COUNT} MCQs` },
     { icon: <BadgeCheck className="h-5 w-5" />, label: "Total Marks", value: `${EXAM_QUESTION_COUNT} (1 each)` },
@@ -46,7 +51,7 @@ export default async function HomePage() {
     {
       icon: <UserRound className="h-6 w-6" />,
       title: "1 · Register",
-      text: "Enter your name, designation, block, mobile and email. One attempt per participant.",
+      text: "Enter your name, designation, block and mobile (email optional). One attempt per participant.",
     },
     {
       icon: <MonitorSmartphone className="h-6 w-6" />,
@@ -266,7 +271,8 @@ export default async function HomePage() {
           <h2 className="gov-heading">Participant Portal</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
             Register with your official details (Name, Designation, Block,
-            Mobile, Email) and immediately begin the objective examination.
+            Mobile — Email optional) and immediately begin the objective
+            examination.
             The exam runs in a monitored full-screen session —{" "}
             <strong>please read the guidelines above first.</strong>
           </p>
@@ -334,6 +340,9 @@ export default async function HomePage() {
           </div>
         ))}
       </section>
+
+      {/* ---------- Session Presentations (bottom of page, above footer) ---------- */}
+      <PptLibrary presentations={presentations} />
     </div>
   );
 }

@@ -130,15 +130,14 @@ export default function RegisterForm() {
 
         <div>
           <label htmlFor="email" className="form-label">
-            Email Address <span className="text-red-600">*</span>
+            Email Address <span className="text-gray-400 font-normal">(Optional)</span>
           </label>
           <input
             id="email"
             name="email"
             type="email"
-            required
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder="you@example.com (optional)"
             className="form-input"
           />
           {state.errors?.email && (
