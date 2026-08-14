@@ -13,7 +13,6 @@ import {
 } from "@/lib/admin";
 import { validateQuestion } from "@/lib/validation";
 import { setExamOpenState } from "@/lib/queries";
-import { EXAM_DURATION_SECONDS } from "@/lib/examConfig";
 import { extractDocxParagraphs, parseDocxQuestions } from "@/lib/docxParser";
 
 /**
@@ -102,23 +101,20 @@ export async function setExamOpen(open: boolean): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
-/* ---------------- Resume a candidate's exam ---------------- */
+/* ---------------- Re-exam a submitted candidate ---------------- */
 
 /**
- * One universal admin “Resume” action, used for any candidate whose exam
- * did not end cleanly (a call interrupted them, the display turned off,
- * the browser closed, an anti-cheat auto-submit fired by mistake, …):
+ * Re-exam — the single admin recovery action for a candidate whose exam was
+ * already submitted (submitted by mistake, or a failed candidate who should
+ * get another attempt):
  *
- *  - Exam still in progress (started, not submitted) → simply approves the
- *    resume so the candidate continues with their genuine remaining time
- *    and saved answers (no request from the candidate needed).
- *  - Exam was submitted (by mistake) → re-opens it: the saved answers and
- *    question set are kept, the score is cleared. If the original deadline
- *    has not yet passed the candidate continues with the time genuinely
- *    left; only when the deadline already passed do they get a fresh
- *    full-duration clock.
+ * The exam is fully reset and the candidate must answer ALL questions again
+ * from the start — saved answers, score, question set and timer are all
+ * cleared. The candidate stays a registered participant, so after finishing
+ * they can use the mobile login ("Get Certificate") flow to submit and
+ * download their certificate — no re-registration needed.
  */
-export async function resumeUserExam(
+export async function reExamUser(
   userId: string
 ): Promise<{ ok: boolean; message?: string }> {
   if (!isAdminAuthenticated()) {
@@ -127,43 +123,30 @@ export async function resumeUserExam(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, submittedAt: true, startedAt: true },
+    select: { id: true },
   });
   if (!user) {
     return { ok: false, message: "Candidate not found." };
   }
 
-  const data: {
-    resumeApprovedAt: Date;
-    resumeRequestedAt: null;
-    submittedAt?: Date | null;
-    score?: number;
-    liveScore?: number;
-    startedAt?: Date;
-  } = {
-    // Skip the candidate-side resume gate: they can continue immediately.
-    resumeApprovedAt: new Date(),
-    resumeRequestedAt: null,
-  };
-
-  if (user.submittedAt) {
-    data.submittedAt = null;
-    data.score = 0;
-    data.liveScore = 0;
-    const elapsed = user.startedAt
-      ? Math.floor((Date.now() - user.startedAt.getTime()) / 1000)
-      : 0;
-    // Keep the original anchor while genuine time remains — the exam page
-    // computes the remaining clock from `startedAt`. Only a genuinely
-    // expired deadline gets a fresh full-duration clock.
-    if (!user.startedAt || elapsed >= EXAM_DURATION_SECONDS) {
-      data.startedAt = new Date();
-    }
-  }
-
-  await prisma.user.update({ where: { id: userId }, data });
+  // Full reset → the exam restarts from zero (all questions from the start).
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      submittedAt: null,
+      startedAt: null,
+      lastActiveAt: null,
+      liveScore: 0,
+      score: 0,
+      answers: Prisma.DbNull,
+      sessionQuestions: Prisma.DbNull,
+      resumeRequestedAt: null,
+      resumeApprovedAt: null,
+    },
+  });
 
   revalidatePath("/admin");
+  revalidatePath("/admin/report");
   revalidatePath("/exam");
   revalidatePath("/result");
   return { ok: true };
@@ -233,35 +216,6 @@ export async function forceEndExam(
   revalidatePath("/admin");
   revalidatePath("/admin/report");
   return { ok: true, score, total: questions.length };
-}
-
-/* ---------------- Delete a completed exam ---------------- */
-
-/**
- * Admin deletes a candidate's record entirely. Once deleted, the candidate
- * can register again (same email) and take the exam fresh — used to let a
- * candidate whose exam is complete appear again.
- */
-export async function deleteUserExam(
-  userId: string
-): Promise<{ ok: boolean; message?: string }> {
-  if (!isAdminAuthenticated()) {
-    return { ok: false, message: "Unauthorised." };
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true },
-  });
-  if (!user) {
-    return { ok: false, message: "Candidate not found." };
-  }
-
-  await prisma.user.delete({ where: { id: userId } });
-
-  revalidatePath("/admin");
-  revalidatePath("/admin/report");
-  return { ok: true };
 }
 
 /* ---------------- Question Manager CRUD ---------------- */

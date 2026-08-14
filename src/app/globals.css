@@ -417,14 +417,61 @@ label {
   color: #111827;
 }
 
+/* The scale wrapper reserves the on-screen height of the scaled sheet so the
+   content below the certificate stays in place (print overrides it to auto).
+   `margin: 0 auto` CANNOT centre an element wider than its container (auto
+   margins resolve to 0 on overflow, pushing the 297mm sheet off-screen right
+   on phones), and flexbox would shrink the sheet — so the sheet is positioned
+   absolutely at left: 50% and centred with translateX(-50%) before scaling. */
+.certificate-scale-height {
+  position: relative;
+}
+
+.certificate-scale-target {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform-origin: top center;
+}
+
 @media print {
   /* The certificate page is the only thing on paper — no toolbar, no
-     chrome, and the sheet fills the page exactly. */
+     chrome, and the sheet fills the page exactly. The mobile screen-scale
+     (CertificateSheet transform + reserved height) is removed here so the
+     paper output is a full A4 landscape sheet. The outer page padding is
+     also removed — otherwise the 32px top/bottom padding pushes the
+     210mm sheet past the A4 page and the print spills onto page 2. */
+  .certificate-page {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .certificate-scale-height {
+    height: auto !important;
+  }
+  .certificate-scale-target {
+    position: static !important;
+    left: 0 !important;
+    transform: none !important;
+  }
   .certificate-sheet {
     margin: 0;
     box-shadow: none !important;
   }
   .certificate-frame {
     inset: 0;
+  }
+
+  /* Admin bulk-certificate print (AdminShell `fullBleedPrint`): zero the
+     page padding so each 297×210mm sheet fills its A4 page exactly. */
+  .print-fullbleed {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  /* One certificate per page in the batch — each sheet gets its own page. */
+  .cert-batch-item {
+    break-after: page;
+  }
+  .cert-batch-item:last-child {
+    break-after: auto;
   }
 }

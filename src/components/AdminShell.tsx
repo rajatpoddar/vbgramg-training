@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Award,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -15,14 +16,21 @@ import { adminLogout } from "@/lib/actions/admin";
 export default function AdminShell({
   title,
   hideTitle = false,
+  fullBleedPrint = false,
   children,
 }: {
   title: string;
   hideTitle?: boolean;
+  /** Zero the page padding in print so A4 sheets fill the page exactly. */
+  fullBleedPrint?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div
+      className={`mx-auto max-w-6xl px-4 py-8 ${
+        fullBleedPrint ? "print-fullbleed" : ""
+      }`}
+    >
       {/* Admin navigation bar */}
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-navy/20 bg-navy px-4 py-3 text-white shadow-sm">
         <div className="flex items-center gap-2">
@@ -38,6 +46,7 @@ export default function AdminShell({
         <nav className="flex flex-wrap items-center gap-1 text-sm">
           <NavLink href="/admin" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />
           <NavLink href="/admin/questions" icon={<ListChecks className="h-4 w-4" />} label="Questions" />
+          <NavLink href="/admin/certificates" icon={<Award className="h-4 w-4" />} label="Certificates" />
           <NavLink href="/admin/report" icon={<Printer className="h-4 w-4" />} label="Print Report" />
           <form action={adminLogout}>
             <button

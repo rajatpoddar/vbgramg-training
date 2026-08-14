@@ -90,6 +90,47 @@ export async function getOrCreateExamSession(
   return selected.map(toExamQuestion);
 }
 
+/** Digits-only form of a mobile number (matches how login matches mobiles). */
+function mobileDigits(mobile: string): string {
+  return mobile.replace(/\D/g, "");
+}
+
+/**
+ * Collapse duplicate registrations for the same mobile number (possible when
+ * the same person registered on both old ports, or re-registered with a
+ * different email). Keeps the "richest" record: submitted beats in-progress
+ * beats never-started; higher score wins; otherwise the most recent one.
+ */
+function dedupeByMobile<
+  T extends {
+    mobile: string;
+    submittedAt: Date | null;
+    startedAt: Date | null;
+    score: number;
+    createdAt: Date;
+  }
+>(rows: T[]): T[] {
+  const best = new Map<string, T>();
+  const rank = (r: T) =>
+    (r.submittedAt ? 2 : r.startedAt ? 1 : 0) * 1000 + r.score;
+  for (const row of rows) {
+    const key = mobileDigits(row.mobile);
+    const cur = best.get(key);
+    if (!cur) {
+      best.set(key, row);
+      continue;
+    }
+    if (
+      rank(row) > rank(cur) ||
+      (rank(row) === rank(cur) &&
+        row.createdAt.getTime() > cur.createdAt.getTime())
+    ) {
+      best.set(key, row);
+    }
+  }
+  return Array.from(best.values());
+}
+
 /** All questions for the admin Question Manager (with timestamps). */
 export async function getAdminQuestions(): Promise<AdminQuestionRow[]> {
   const rows = await prisma.question.findMany({
@@ -177,12 +218,31 @@ export async function getUserById(id: string) {
   return prisma.user.findUnique({ where: { id } });
 }
 
+/**
+ * Candidates eligible for a participation certificate — anyone who submitted
+ * OR began the exam (per the admin decision: submitted AND stuck participants
+ * both receive one). Deduped by mobile like the dashboard, most recently
+ * submitted first.
+ */
+export async function getCertificateCandidates() {
+  const rows = await prisma.user.findMany({
+    where: {
+      OR: [{ submittedAt: { not: null } }, { startedAt: { not: null } }],
+    },
+    orderBy: [{ submittedAt: "desc" }, { createdAt: "desc" }],
+  });
+  return dedupeByMobile(rows);
+}
+
 /** Data bundle for the admin dashboard (includes LIVE session status). */
 export async function getDashboardData() {
-  const [users, totalQuestions] = await Promise.all([
+  const [rawUsers, totalQuestions] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.question.count(),
   ]);
+  // One row per mobile — the same person must never appear twice in the
+  // admin panel (duplicates came from the two-port era / re-registration).
+  const users = dedupeByMobile(rawUsers);
 
   // The exam is 25 questions — live scores and the pass threshold are all
   // relative to the per-candidate exam length, not the full question bank.
@@ -228,10 +288,12 @@ export async function getDashboardData() {
 
 /** Data bundle for the print-ready analytics report. */
 export async function getReportData() {
-  const [users, totalQuestions] = await Promise.all([
+  const [rawUsers, totalQuestions] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.question.count(),
   ]);
+  // Same dedup as the dashboard so the printed report never lists a person twice.
+  const users = dedupeByMobile(rawUsers);
 
   const examLength = Math.min(EXAM_QUESTION_COUNT, totalQuestions);
   const passThreshold = Math.ceil((examLength * PASS_PERCENTAGE) / 100);

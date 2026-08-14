@@ -47,12 +47,16 @@ export async function registerUser(
   //    of being stranded (even if the window is temporarily closed, the exam
   //    page still permits in-progress sessions to continue).
   //
-  // Email is optional, so when the participant did not provide one, the
-  // mobile number (also unique per participant) is used for the check.
+  // The mobile number is the candidate's identity (used for login/certificate),
+  // so the check must match on mobile AND email — otherwise the same person
+  // could re-register with a different email and create a duplicate row.
   const existing = await prisma.user.findFirst({
-    where: input.email
-      ? { email: input.email }
-      : { mobile: input.mobile },
+    where: {
+      OR: [
+        { mobile: input.mobile },
+        ...(input.email ? [{ email: input.email }] : []),
+      ],
+    },
   });
   if (existing) {
     if (existing.submittedAt) {
@@ -214,43 +218,6 @@ function sanitizeAnswers(
   });
 
   return { ended: false, timeLeft };
-}
-
-/**
- * Candidate-side: request permission to resume an interrupted exam.
- * Marks the request so it appears in the admin dashboard's Resume
- * Approvals panel.
- */
-export async function requestExamResume(userId: string): Promise<{ ok: boolean }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, submittedAt: true },
-  });
-  if (!user || user.submittedAt) return { ok: false };
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { resumeRequestedAt: new Date() },
-  });
-
-  revalidatePath("/admin");
-  return { ok: true };
-}
-
-/**
- * Candidate-side: poll whether the admin has approved the resume.
- * The interrupted-session screen checks this periodically and continues
- * automatically once approved.
- */
-export async function getResumeStatus(
-  userId: string
-): Promise<{ approved: boolean; ok: boolean }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, resumeApprovedAt: true },
-  });
-  if (!user) return { ok: false, approved: false };
-  return { ok: true, approved: user.resumeApprovedAt !== null };
 }
 
 /**

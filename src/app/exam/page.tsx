@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, Smartphone, WifiOff } from "lucide-react";
 import ExamInterface from "@/components/ExamInterface";
-import ResumeGate from "@/components/ResumeGate";
 import { EXAM_DURATION_SECONDS } from "@/lib/examConfig";
 import {
   getUserById,
@@ -100,10 +99,13 @@ export default async function ExamPage({
     );
   }
 
-  // Session was interrupted (started, not submitted, heartbeat gone stale)
-  // and the admin has NOT approved a resume → the candidate must wait for
-  // approval before continuing. A fresh heartbeat (within the grace window)
-  // means the candidate is still connected — a simple reload continues.
+  // Session was interrupted (started, not submitted, heartbeat gone stale) and
+  // the candidate has not yet re-verified via the mobile login → they are sent
+  // to the "Get Certificate" flow, where entering their registered mobile
+  // number continues the exam directly (no admin approval needed; if the
+  // timer already ran out, they get a fresh window to finish). A fresh
+  // heartbeat (within the grace window) means the candidate is still
+  // connected — a simple reload continues seamlessly.
   const isActive =
     user.lastActiveAt !== null &&
     Date.now() - user.lastActiveAt.getTime() < RESUME_GRACE_MS;
@@ -113,17 +115,13 @@ export default async function ExamPage({
     !user.resumeApprovedAt &&
     !isActive
   ) {
-    return (
-      <ResumeGate
-        userId={user.id}
-        alreadyRequested={user.resumeRequestedAt !== null}
-      />
-    );
+    return <InterruptedSession />;
   }
 
   // Remaining exam time. The clock is anchored to `startedAt` (the first time
-  // the candidate began the exam), so an approved resume continues with the
-  // time genuinely left — a candidate cannot refresh/resume for extra time.
+  // the candidate began the exam), so a verified continuation keeps the time
+  // genuinely left — a candidate cannot refresh for extra time (only a mobile
+  // login after the clock already ran out restarts the window).
   // The exam has a fixed duration (15 minutes) regardless of question count.
   const totalSeconds = EXAM_DURATION_SECONDS;
   let initialTimeLeft = totalSeconds;
@@ -144,6 +142,45 @@ export default async function ExamPage({
         }
         initialTimeLeft={initialTimeLeft}
       />
+    </div>
+  );
+}
+
+/**
+ * Shown when a started exam's session went stale (network failure / browser
+ * closed). The candidate continues by verifying their identity through the
+ * mobile login — no admin approval is involved anymore.
+ */
+function InterruptedSession() {
+  return (
+    <div className="mx-auto max-w-xl px-4 py-16">
+      <div className="gov-card border-t-4 border-t-saffron p-6 sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-saffron-light text-saffron-dark">
+            <WifiOff className="h-6 w-6" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold leading-tight text-navy sm:text-xl">
+              Session Interrupted
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">
+              Your previous exam session was interrupted (network failure or
+              browser issue). Your saved answers are safe. Continue directly by
+              entering the mobile number you registered with — no approval
+              needed, and if the time already ran out you get a fresh window to
+              finish.
+            </p>
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/mobile-login" className="btn-primary">
+            <Smartphone className="h-4 w-4" /> Continue with Mobile Login
+          </Link>
+          <Link href="/" className="btn-outline">
+            Back to Home
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

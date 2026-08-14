@@ -109,6 +109,28 @@ export default async function HomePage() {
             </Link>
           )}
         </div>
+
+        {/* Quick actions — start the exam / get certificate, right at the top */}
+        <div className="mt-3 flex flex-wrap items-center gap-2.5">
+          {examOpen ? (
+            <Link href="/register" className="btn-primary px-4 py-2 text-sm">
+              <UserRound className="h-4 w-4" /> Start Exam
+            </Link>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded bg-white/60 px-3 py-2 text-xs font-medium text-red-700">
+              <Lock className="h-3.5 w-3.5" /> Registration opens when the admin
+              starts the exam
+            </span>
+          )}
+          <Link
+            href="/mobile-login"
+            className={`px-4 py-2 text-sm ${
+              examOpen ? "btn-outline" : "btn-primary"
+            }`}
+          >
+            <Award className="h-4 w-4" /> Get Certificate
+          </Link>
+        </div>
       </div>
 
       {/* ---------- Hero ---------- */}

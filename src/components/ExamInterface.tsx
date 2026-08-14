@@ -12,6 +12,7 @@ import {
   Loader2,
   Maximize2,
   Play,
+  RefreshCw,
   Send,
   ShieldAlert,
   Timer,
@@ -84,6 +85,9 @@ export default function ExamInterface({
   });
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which retry attempt the submission is on (shown on the submitting screen
+  // so a slow server never looks like a silent hang).
+  const [submitAttempt, setSubmitAttempt] = useState(0);
   // Question palette is collapsed on phones so the screen stays focused on
   // the timer + question + options (toggled via the status bar).
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -123,6 +127,10 @@ export default function ExamInterface({
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
   const submittingRef = useRef(false);
+  // Generation counter for submissions: each new submit/cancel bumps it, and
+  // stale in-flight attempts check it before touching phase/error state so a
+  // superseded request can never clobber a newer one.
+  const submitGenRef = useRef(0);
   const fullscreenActiveRef = useRef(false);
   // Set once when the timer expires, so a failed submission does not trigger
   // an endless auto-submit retry loop (phase returns to "exam" on error).
@@ -154,28 +162,33 @@ export default function ExamInterface({
    *
    * Retry up to 3 times with a short backoff so a transient network blip or
    * a slow NAS response does not strand the candidate on the "submitting"
-   * screen. If the server says the exam is already submitted (e.g. the
-   * server-side auto-finalise in the heartbeat ran first), just go to the
-   * result page. If every attempt fails, return to the exam with a clear
-   * error and let the candidate tap Submit again.
+   * screen. The current attempt number is shown to the candidate, so a slow
+   * server never looks like a silent hang. If the server says the exam is
+   * already submitted (e.g. the server-side auto-finalise in the heartbeat
+   * ran first), just go to the result page. If every attempt fails, return
+   * to the exam with a clear error — the candidate's answers were already
+   * persisted by the heartbeat, so nothing is lost and they can tap Submit
+   * again (or continue later via the mobile login).
    */
   const finalizeExam = useCallback(
     async () => {
       if (submittingRef.current) return;
       submittingRef.current = true;
+      const gen = ++submitGenRef.current;
+      setSubmitAttempt(0);
       setPhase("submitting");
 
       const maxAttempts = 3;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        setSubmitAttempt(attempt);
         try {
           const res = await submitExam(userId, answersRef.current);
-          if (res.ok) {
-            router.replace(`/result?userId=${userId}`);
-            return;
-          }
-          // Already submitted (e.g. the server auto-finalised it when the
-          // clock ran out) → the exam is over, take them to their result.
-          if (res.message && /already/i.test(res.message)) {
+          // Superseded by a newer submission attempt or a cancel → back off
+          // without touching state (that attempt owns the screen now).
+          if (gen !== submitGenRef.current) return;
+          // Success, or the server already finalised it (heartbeat
+          // auto-submit when the clock ran out) → the exam is over.
+          if (res.ok || (res.message && /already/i.test(res.message))) {
             router.replace(`/result?userId=${userId}`);
             return;
           }
@@ -185,22 +198,44 @@ export default function ExamInterface({
           }
           submittingRef.current = false;
           setPhase("exam");
-          setError(res.message ?? "Unable to submit the exam. Please try again.");
+          setError(
+            res.message ??
+              "Unable to submit the exam. Your answers are saved — please try again."
+          );
           return;
         } catch {
+          if (gen !== submitGenRef.current) return;
           if (attempt < maxAttempts) {
             await new Promise((r) => setTimeout(r, 1000 * attempt));
             continue;
           }
           submittingRef.current = false;
           setPhase("exam");
-          setError("Network error while submitting. Please try again.");
+          setError(
+            "Network error while submitting. Your answers are saved — please try again."
+          );
           return;
         }
       }
     },
     [router, userId]
   );
+
+  /**
+   * Abandon an in-flight submission and return to the exam. The candidate is
+   * never stranded on the submitting screen: their answers are already saved
+   * on the server, and if the abandoned request actually went through, the
+   * next submit attempt (or heartbeat) will see the exam as submitted and
+   * route them to the result page.
+   */
+  const cancelSubmission = useCallback(() => {
+    submitGenRef.current++; // invalidate the in-flight attempt
+    submittingRef.current = false;
+    setPhase("exam");
+    setError(
+      "Submission was cancelled — your answers are saved. Tap Submit Exam to try again."
+    );
+  }, []);
 
   /**
    * Re-sync the countdown with the server's authoritative remaining time.
@@ -513,9 +548,25 @@ export default function ExamInterface({
         <p className="mt-4 text-sm font-medium text-navy">
           Submitting your examination…
         </p>
+        {submitAttempt > 1 && (
+          <p className="mt-2 flex items-center gap-2 text-xs font-medium text-amber-700">
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            The server was slow — trying again (attempt {submitAttempt} of 3).
+            Your answers are safe.
+          </p>
+        )}
         <p className="mt-1 text-xs text-gray-500">
-          Please do not close or refresh this page.
+          Please do not close this page. Even if you leave, your answers are
+          already saved — you can continue later with your registered mobile
+          number.
         </p>
+        <button
+          type="button"
+          onClick={cancelSubmission}
+          className="btn-outline mt-6"
+        >
+          Cancel and return to exam
+        </button>
       </div>
     );
   }

@@ -2,22 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Activity,
+  Award,
   ClipboardCheck,
-  FileText,
   ListChecks,
   Printer,
   Radio,
-  RefreshCw,
   Target,
   Users,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import AutoRefresh from "@/components/AutoRefresh";
 import DatabaseCleanup from "@/components/DatabaseCleanup";
-import DeleteUserButton from "@/components/DeleteUserButton";
 import ExamControlPanel from "@/components/ExamControlPanel";
 import ForceEndButton from "@/components/ForceEndButton";
-import ResumeExamButton from "@/components/ResumeExamButton";
+import ReExamButton from "@/components/ReExamButton";
 import { formatDateTimeShortIST } from "@/lib/dates";
 import { getDashboardData, isExamOpen, RESUME_GRACE_MS } from "@/lib/queries";
 
@@ -44,29 +42,32 @@ function timeAgo(date: Date | null): string {
  * Admin Dashboard — aggregate statistics, a LIVE exam-status panel, and the
  * full table of registered participants with their scores.
  *
- * Resume flow (simplified): there is no separate approvals screen — every
- * candidate whose exam needs attention gets a Resume button right in their
- * row. Candidates waiting for the admin are flagged with an orange badge
- * and listed in a small banner above the table.
+ * Duplicate registrations for the same mobile number are collapsed server-side
+ * (`getDashboardData` keeps the richest record), so a candidate can never
+ * appear twice. The live panel is sorted with the most recently active
+ * participant on top.
+ *
+ * Recovery actions:
+ *  - Live (in progress): admin can force-end the session to finalise the score.
+ *  - Submitted: the key-icon button gives a re-exam — the candidate's exam is
+ *    fully reset (score, answers, timer) so they must answer ALL questions
+ *    again from the start. No other manual resume exists: candidates continue
+ *    interrupted exams themselves via the mobile login ("Get Certificate").
  */
 export default async function AdminDashboardPage() {
   const [data, examOpen] = await Promise.all([
     getDashboardData(),
     isExamOpen(),
   ]);
-  const activeUsers = data.users.filter(
-    (u) => u.startedAt !== null && u.submittedAt === null
-  );
 
-  // Candidates who asked to resume (their session broke) and are still
-  // waiting for the admin's go-ahead.
-  const waitingResumes = data.users.filter(
-    (u) =>
-      u.startedAt !== null &&
-      u.submittedAt === null &&
-      u.resumeApprovedAt === null &&
-      u.resumeRequestedAt !== null
-  );
+  // Candidates who began the exam and have not submitted — most recently
+  // active first (null lastActiveAt sinks to the bottom).
+  const activeUsers = data.users
+    .filter((u) => u.startedAt !== null && u.submittedAt === null)
+    .sort(
+      (a, b) =>
+        (b.lastActiveAt?.getTime() ?? 0) - (a.lastActiveAt?.getTime() ?? 0)
+    );
 
   const stats = [
     {
@@ -136,7 +137,7 @@ export default async function AdminDashboardPage() {
             </span>
           </h2>
           <span className="text-xs text-gray-500">
-            {data.onlineNow} online now · refreshes automatically every 10 seconds
+            {data.onlineNow} online now · most recently active first · refreshes every 10 seconds
           </span>
         </div>
 
@@ -212,7 +213,6 @@ export default async function AdminDashboardPage() {
                       className="px-4 py-2.5 text-center"
                     >
                       <div className="flex flex-wrap items-center justify-center gap-1.5">
-                        <ResumeExamButton userId={u.id} />
                         <ForceEndButton userId={u.id} />
                       </div>
                     </td>
@@ -230,24 +230,13 @@ export default async function AdminDashboardPage() {
         <Link href="/admin/questions" className="btn-primary">
           <ListChecks className="h-4 w-4" /> Manage Questions
         </Link>
+        <Link href="/admin/certificates" className="btn-primary">
+          <Award className="h-4 w-4" /> Certificates
+        </Link>
         <Link href="/admin/report" className="btn-green">
           <Printer className="h-4 w-4" /> Print Analytics Report
         </Link>
       </div>
-
-      {/* Candidates waiting to resume — one-tap from the table below */}
-      {waitingResumes.length > 0 && (
-        <div className="no-print mb-4 flex flex-wrap items-center gap-2 rounded border border-saffron bg-saffron-light/60 px-4 py-3">
-          <RefreshCw className="h-4 w-4 shrink-0 text-saffron-dark" />
-          <p className="min-w-0 flex-1 text-sm text-gray-800">
-            <strong>{waitingResumes.length}</strong> candidate
-            {waitingResumes.length > 1 ? "s are" : " is"} waiting to resume
-            after an interruption — press the{" "}
-            <strong className="text-indiaGreen-dark">Resume</strong> button
-            next to their name below.
-          </p>
-        </div>
-      )}
 
       {/* Participants table */}
       <div className="gov-card overflow-hidden">
@@ -256,10 +245,12 @@ export default async function AdminDashboardPage() {
             Registered Participants ({data.totalRegistered})
           </h2>
           <p className="mt-0.5 text-xs text-gray-500">
-            <strong>Resume</strong> lets a candidate whose exam ended by
-            mistake (call, display off, browser closed) continue from where
-            they left off · <strong>Delete</strong> lets a candidate whose
-            exam is complete register and appear again.
+            <strong>Re-exam</strong> (key icon, submitted candidates only)
+            fully resets a candidate&apos;s exam — score, saved answers and
+            timer are cleared, and they must answer ALL questions again from
+            the start. Use it for candidates who submitted by mistake or need
+            another attempt. Interrupted exams are continued by the candidate
+            themselves via the mobile login.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -290,13 +281,6 @@ export default async function AdminDashboardPage() {
               </tr>
             ) : (
               data.users.map((u, i) => {
-                // Waiting to resume: session broke and the admin has not
-                // yet approved a resume.
-                const waiting =
-                  u.startedAt !== null &&
-                  u.submittedAt === null &&
-                  u.resumeApprovedAt === null &&
-                  u.resumeRequestedAt !== null;
                 const inProgress =
                   u.startedAt !== null && u.submittedAt === null;
                 return (
@@ -307,12 +291,6 @@ export default async function AdminDashboardPage() {
                     <td data-label="Name" className="px-4 py-2.5 font-medium text-navy">
                       <span className="flex flex-wrap items-center gap-2">
                         {u.name}
-                        {waiting && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-saffron-light px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-saffron-dark">
-                            <RefreshCw className="h-3 w-3" />
-                            Waiting to resume
-                          </span>
-                        )}
                       </span>
                     </td>
                     <td data-label="Designation" className="px-4 py-2.5">
@@ -355,18 +333,17 @@ export default async function AdminDashboardPage() {
                       {u.submittedAt ? (
                         <div className="flex flex-wrap items-center justify-center gap-1.5">
                           <Link
-                            href={`/admin/result-card?userId=${u.id}`}
-                            title="Open this candidate's printable result card"
-                            className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-navy transition-colors hover:border-navy hover:bg-parchment"
+                            href={`/certificate?userId=${u.id}`}
+                            target="_blank"
+                            title="Generate / print this candidate's certificate"
+                            className="inline-flex items-center justify-center rounded border border-gray-300 bg-white p-1.5 text-navy transition-colors hover:border-saffron-dark hover:bg-saffron-light"
                           >
-                            <FileText className="h-3.5 w-3.5" /> View
+                            <Award className="h-4 w-4" />
                           </Link>
-                          <ResumeExamButton userId={u.id} submitted />
-                          <DeleteUserButton userId={u.id} />
+                          <ReExamButton userId={u.id} />
                         </div>
                       ) : inProgress ? (
                         <div className="flex flex-wrap items-center justify-center gap-1.5">
-                          <ResumeExamButton userId={u.id} />
                           <ForceEndButton userId={u.id} />
                         </div>
                       ) : (

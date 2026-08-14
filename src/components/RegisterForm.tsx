@@ -8,6 +8,11 @@ import { registerUser, type RegisterState } from "@/lib/actions/exam";
 
 /** Common designations & Deoghar blocks shown as suggestions. */
 const DESIGNATIONS = [
+  "Junior Engineer",
+  "AE",
+  "BPO",
+  "GRS",
+  "Panchayat Secretary",
   "Panchayat Sewak",
   "Gram Rozgar Sevak",
   "Block Development Officer",
