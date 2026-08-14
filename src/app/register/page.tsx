@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CalendarDays, Clock3, Lock, MapPin } from "lucide-react";
 import RegisterForm from "@/components/RegisterForm";
 import { isExamOpen } from "@/lib/queries";
+import { getDistrict } from "@/lib/districts";
 import { EXAM_DURATION_MINUTES, EXAM_QUESTION_COUNT } from "@/lib/examConfig";
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function RegisterPage() {
   const examOpen = await isExamOpen();
+  const district = getDistrict();
 
   if (!examOpen) {
     return (
@@ -47,13 +49,13 @@ export default async function RegisterPage() {
             <p className="flex items-center gap-2.5">
               <CalendarDays className="h-4 w-4 shrink-0 text-saffron-dark" />
               <span className="min-w-0 break-words">
-                <strong>Date:</strong> 13th August, 2026
+                <strong>Date:</strong> {district.program.eventDate}
               </span>
             </p>
             <p className="flex items-center gap-2.5">
               <MapPin className="h-4 w-4 shrink-0 text-saffron-dark" />
               <span className="min-w-0 break-words">
-                <strong>Venue:</strong> DRDS Training Hall, Deoghar
+                <strong>Venue:</strong> {district.program.venue}
               </span>
             </p>
             <p className="flex items-center gap-2.5">
@@ -87,7 +89,7 @@ export default async function RegisterPage() {
         </p>
 
         <div className="mt-6 border-t border-gray-200 pt-6">
-          <RegisterForm />
+          <RegisterForm blocks={district.blocks} />
         </div>
       </div>
     </div>

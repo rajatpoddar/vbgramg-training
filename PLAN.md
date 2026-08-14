@@ -92,16 +92,24 @@ No. The exam state was never in localStorage; it is in the DB via heartbeats. Mo
 
 Requirement: *"I should be able to conduct this exam in all districts — just create a subdomain and point it at the site."*
 
+Status: **IMPLEMENTED** (2026-08-14).
+
 ### Design: one deployment, per-district databases, host-based routing
-- App reads the `Host` header → first label = **district key** (`deoghar.portal.in`, `jamtara.portal.in`, …).
-- **Each district gets its own database** (isolated questions, candidates, exam window, certificates) — no data mixing, no permission bugs.
-  - Now (NAS/SQLite): one SQLite file per district (e.g. `/data/deoghar.db`).
+- App reads the `Host` header → first label = **district key** (`deoghar.portal.in`, `jamtara.portal.in`, …); unknown hosts (IP/localhost/www) fall back to the default district `deoghar`. ✓
+- **Each district gets its own database** (isolated questions, candidates, exam window, certificates) — no data mixing. ✓
+  - Now (NAS/SQLite): one SQLite file per district (e.g. `/data/deoghar.db`, `/data/jamtara.db`).
   - Later (scale): one PostgreSQL database per district (same isolation, real concurrency).
-- A small **district registry** (config file or `Setting`-style table): district key → display name ("Deoghar", "Jamtara"), DB name, exam window, certificate district text, admin credentials.
-- **Admin portal is per-district**: each district admin manages their own questions, opens/closes their own window, sees their own report.
-- Existing Deoghar data becomes the `deoghar` district (no data change).
-- DNS/ops: user creates `deoghar.example.com` → reverse proxy (nginx on port 80/443) → app; app auto-detects the district from the subdomain. **No code change per district** — that's the whole point.
-- Refactor needed: `src/lib/prisma.ts` singleton → a **per-district client factory** (cached map district → PrismaClient).
+- **District registry** = `src/lib/districts.ts`: key → name, DB file (env override `DISTRICT_DB_URL_<KEY>`), blocks, certificate/report text (authority, date, venue, email/phone). Adding a district = adding one config entry + provisioning its DB file. **No code change per district.** ✓
+- **Per-district Prisma client**: `src/lib/prisma.ts` now exports a Proxy that resolves the district from the request `Host` header on every property access — all existing query/action code is untouched and automatically hits the right database. ✓
+- **Admin portal is per-district**: each district admin manages their own questions, opens/closes their own window, sees their own report. Admin password/token remain global env vars (per-district credentials still an open decision — see §8). ✓
+- Existing Deoghar data becomes the `deoghar` district (no data change — it keeps the existing `DATABASE_URL` file). ✓
+- All user-facing text (header, footer, home, register/blocks, result, certificate, report, result-card, admin shell) is district-aware. ✓
+
+### Deploying a new district (ops)
+1. Add one entry to `DISTRICTS` in `src/lib/districts.ts` (key, name, db file, blocks, program text).
+2. Create the DNS subdomain (`<key>.example.com`) → reverse proxy (nginx on 80/443) → app. The app auto-detects the district from the subdomain.
+3. Provision the DB file: locally `DATABASE_URL="file:./prisma/<key>.db" npx prisma db push`; in Docker add the file to `DISTRICT_DB_URLS` in docker-compose.yml (the entrypoint `db push`es each) and set the per-district override `DISTRICT_DB_URL_<KEY>` if the file path differs.
+4. Each district starts with an empty bank — upload questions from that district's admin portal, open its own exam window.
 
 ---
 
@@ -146,6 +154,6 @@ Each step is independently shippable and verified (typecheck + test + deploy on 
 
 ### Still open
 - **Hosting for 5000 users:** NAS-only for now (Tier 2 max), or ready to move to a VPS/cloud (Tier 3 = the only honest way to 5000)? If VPS, which one?
-- **Multi-district isolation**: per-district **separate databases** (recommended) — confirm. Per-district admin login, or one central admin?
+- **Per-district admin login**: currently a single global admin password/token for all districts (simplest, matches the one-deployment model). Want per-district credentials → per-district env vars in the registry.
 - **QR verification link**: public domain (e.g. `exam.deoghar.nic.in`) or only the LAN/Tailscale IP for now?
 - **Emblem/signature images**: any official image files to include on the certificate?

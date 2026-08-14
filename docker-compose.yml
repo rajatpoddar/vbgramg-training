@@ -25,6 +25,11 @@ services:
     environment:
       # Absolute path inside the container, on the persistent volume.
       DATABASE_URL: "file:/data/exam.db"
+      # Multi-district (PLAN.md Step 4): extra SQLite files on the same
+      # volume, one per district. The entrypoint `db push`es each. The
+      # subdomain → DB mapping lives in src/lib/districts.ts (registry),
+      # with per-district env overrides like DISTRICT_DB_URL_JAMTARA.
+      # DISTRICT_DB_URLS: "file:/data/jamtara.db"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
       ADMIN_TOKEN: "${ADMIN_TOKEN:-dev-admin-token}"
       COOKIE_SECURE: "${COOKIE_SECURE:-false}"

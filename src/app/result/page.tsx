@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Award, CheckCircle2, Home, XCircle } from "lucide-react";
 import { formatDateTimeIST } from "@/lib/dates";
 import { getUserById, getUserExamTotal, PASS_PERCENTAGE } from "@/lib/queries";
+import { getDistrict } from "@/lib/districts";
 
 export const metadata: Metadata = {
   title: "Result",
@@ -21,6 +22,7 @@ export default async function ResultPage({
 }) {
   const userId = searchParams.userId;
   const user = userId ? await getUserById(userId) : null;
+  const district = getDistrict();
 
   if (!user) {
     return (
@@ -133,8 +135,8 @@ export default async function ResultPage({
       </div>
 
       <p className="mt-4 text-center text-xs text-gray-500">
-        Official record of the District Administration, Deoghar · Viksit Bharat -
-        G RAM G Training Programme
+        Official record of the District Administration, {district.name} · Viksit
+        Bharat - G RAM G Training Programme
       </p>
     </div>
   );

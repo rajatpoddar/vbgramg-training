@@ -12,6 +12,7 @@ import PrintButton from "@/components/PrintButton";
 import ShareResultCard from "@/components/ShareResultCard";
 import { formatDateTimeIST } from "@/lib/dates";
 import { getUserById, getUserExamTotal, PASS_PERCENTAGE } from "@/lib/queries";
+import { getDistrict } from "@/lib/districts";
 
 export const metadata: Metadata = {
   title: "Candidate Result Card",
@@ -37,6 +38,7 @@ export default async function ResultCardPage({
     redirect("/admin");
   }
 
+  const district = getDistrict();
   const user = await getUserById(userId);
 
   if (!user) {
@@ -118,7 +120,7 @@ export default async function ResultCardPage({
             Government of Jharkhand
           </p>
           <h1 className="mt-1 text-base font-bold text-navy sm:text-lg">
-            District Rural Development Agency (DRDA / DRDS), Deoghar
+            District Rural Development Agency (DRDA / DRDS), {district.name}
           </h1>
           <p className="text-xs text-gray-600">
             VB-G RAM G Act, 2025 – One-Day TOT Programme · Post-Training Evaluation
@@ -130,7 +132,7 @@ export default async function ResultCardPage({
         <div className="px-6 pt-5 text-center">
           <h2 className="text-xl font-bold text-navy">Individual Result Card</h2>
           <p className="mt-1 text-xs text-gray-500">
-            Date: 13th August, 2026 · Venue: DRDS Training Hall, Deoghar
+            Date: {district.program.eventDate} · Venue: {district.program.venue}
           </p>
         </div>
 
@@ -201,15 +203,15 @@ export default async function ResultCardPage({
           <div>
             <p className="font-medium">Authorised Signatory</p>
             <p className="mt-12 border-t border-gray-400 pt-1 text-xs text-gray-500">
-              District Development Officer, DRDA Deoghar
+              District Development Officer, DRDA {district.name}
             </p>
           </div>
         </div>
 
         <p className="flex items-center justify-center gap-1.5 border-t border-gray-200 px-6 py-3 text-center text-[10px] text-gray-500">
           <CheckCircle2 className="h-3 w-3" />
-          Computer-generated result card · District Administration, Deoghar ·
-          Viksit Bharat - G RAM G Training Programme
+          Computer-generated result card · District Administration, {district.name}
+          · Viksit Bharat - G RAM G Training Programme
         </p>
       </div>
     </div>

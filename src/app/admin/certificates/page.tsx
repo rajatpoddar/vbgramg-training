@@ -8,6 +8,7 @@ import CertificateContent from "@/components/CertificateContent";
 import PrintButton from "@/components/PrintButton";
 import { formatDateTimeShortIST } from "@/lib/dates";
 import { getCertificateCandidates } from "@/lib/queries";
+import { getDistrict } from "@/lib/districts";
 
 export const metadata: Metadata = {
   title: "Certificates — Admin",
@@ -29,6 +30,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function AdminCertificatesPage() {
   const candidates = await getCertificateCandidates();
+  const district = getDistrict();
 
   // Verification QR per candidate (links back to the public verify URL).
   const host = headers().get("host") ?? "localhost";
@@ -155,7 +157,11 @@ export default async function AdminCertificatesPage() {
             {withQr.map(({ user, qr }) => (
               <div key={user.id} className="cert-batch-item">
                 <div className="certificate-sheet">
-                  <CertificateContent user={user} qrDataUrl={qr} />
+                  <CertificateContent
+                    user={user}
+                    qrDataUrl={qr}
+                    district={district}
+                  />
                 </div>
               </div>
             ))}

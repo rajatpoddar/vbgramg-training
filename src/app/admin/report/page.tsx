@@ -4,6 +4,7 @@ import AdminShell from "@/components/AdminShell";
 import PrintButton from "@/components/PrintButton";
 import { formatDateLongIST } from "@/lib/dates";
 import { getReportData, PASS_PERCENTAGE } from "@/lib/queries";
+import { getDistrict } from "@/lib/districts";
 
 export const metadata: Metadata = {
   title: "Print Report",
@@ -21,6 +22,9 @@ export const dynamic = "force-dynamic";
  */
 export default async function ReportPage() {
   const data = await getReportData();
+  const district = getDistrict();
+  // Short district code for the report number (e.g. DEO for Deoghar).
+  const districtCode = district.name.slice(0, 3).toUpperCase();
 
   const passThreshold = Math.ceil((data.examLength * PASS_PERCENTAGE) / 100);
   const avgScore =
@@ -68,7 +72,7 @@ export default async function ReportPage() {
               color: "#1B3A6B",
             }}
           >
-            DISTRICT RURAL DEVELOPMENT AGENCY (DRDA / DRDS), DEOGHAR
+            DISTRICT RURAL DEVELOPMENT AGENCY (DRDA / DRDS), {district.name.toUpperCase()}
           </h1>
           <p style={{ fontSize: 12, margin: "2px 0 0", color: "#333" }}>
             VB-G RAM G ACT, 2025 – ONE-DAY TOT PROGRAMME
@@ -84,7 +88,8 @@ export default async function ReportPage() {
             POST-TRAINING EVALUATION SHEET (पोस्ट-टेस्ट मूल्यांकन पत्रक)
           </p>
           <p style={{ fontSize: 11, margin: "4px 0 0", color: "#333" }}>
-            Date: 13th August, 2026 &nbsp;·&nbsp; Venue: DRDS Training Hall, Deoghar
+            Date: {district.program.eventDate} &nbsp;·&nbsp; Venue:{" "}
+            {district.program.venue}
           </p>
           {/* Tricolor rule */}
           <div
@@ -110,7 +115,7 @@ export default async function ReportPage() {
               Government of Jharkhand
             </p>
             <h2 className="text-lg font-bold text-navy">
-              District Rural Development Agency (DRDA / DRDS), Deoghar
+              District Rural Development Agency (DRDA / DRDS), {district.name}
             </h2>
             <p className="text-sm text-gray-600">
               VB-G RAM G Act, 2025 – One-Day TOT Programme
@@ -119,7 +124,7 @@ export default async function ReportPage() {
               Post-Training Evaluation Sheet (पोस्ट-टेस्ट मूल्यांकन पत्रक)
             </p>
             <p className="text-xs text-gray-600">
-              Date: 13th August, 2026 · Venue: DRDS Training Hall, Deoghar
+              Date: {district.program.eventDate} · Venue: {district.program.venue}
             </p>
           </div>
         </div>
@@ -138,7 +143,8 @@ export default async function ReportPage() {
           <div className="border-b border-gray-300 px-4 py-3 text-sm text-gray-700">
             <div className="flex flex-wrap justify-between gap-2">
               <span>
-                <strong>Report No.:</strong> DRDA/DEK/VB-GRAMG/{new Date().getFullYear()}/01
+                <strong>Report No.:</strong> DRDA/{districtCode}/VB-GRAMG/
+                {new Date().getFullYear()}/01
               </span>
               <span>
                 <strong>Date:</strong> {formatDateLongIST(data.generatedAt)}
@@ -148,8 +154,9 @@ export default async function ReportPage() {
               </span>
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              Programme: VB-G RAM G Act, 2025 – One-Day TOT · Conducted by DRDA /
-              DRDS, Deoghar · Date: 13th August, 2026 · Venue: DRDS Training Hall
+              Programme: VB-G RAM G Act, 2025 – One-Day TOT · Conducted by{" "}
+              {district.program.authority} · Date: {district.program.eventDate}{" "}
+              · Venue: {district.program.venue}
             </p>
           </div>
 
@@ -229,7 +236,7 @@ export default async function ReportPage() {
             <div>
               <p className="font-medium">Verified &amp; Signed</p>
               <p className="mt-6 border-t border-gray-400 pt-1 text-xs text-gray-500">
-                District Development Officer, DRDA Deoghar
+                District Development Officer, DRDA {district.name}
               </p>
             </div>
           </div>
@@ -238,8 +245,8 @@ export default async function ReportPage() {
         {/* Print-only footer line for the document */}
         <p className="print-only mt-4 text-center text-[10px] text-gray-600">
           This is a computer-generated report. No signature is required unless
-          manually added above. · DRDA / DRDS, Deoghar · VB-G RAM G Act, 2025 –
-          One-Day TOT Programme
+          manually added above. · DRDA / DRDS, {district.name} · VB-G RAM G Act,
+          2025 – One-Day TOT Programme
         </p>
       </AdminShell>
     </div>

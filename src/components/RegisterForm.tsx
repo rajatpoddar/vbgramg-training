@@ -6,7 +6,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { AlertCircle, UserRound } from "lucide-react";
 import { registerUser, type RegisterState } from "@/lib/actions/exam";
 
-/** Common designations & Deoghar blocks shown as suggestions. */
+/** Common designations shown as suggestions. */
 const DESIGNATIONS = [
   "Junior Engineer",
   "AE",
@@ -20,22 +20,13 @@ const DESIGNATIONS = [
   "Clerk",
   "Other",
 ];
-const BLOCKS = [
-  "Deoghar",
-  "Devipur",
-  "Karon",
-  "Madhupur",
-  "Margomunda",
-  "Mohanpur",
-  "Palojori",
-  "Sarath",
-  "Sarwan",
-  "Sonaraithari",
-];
-
 const initialState: RegisterState = {};
 
-export default function RegisterForm() {
+/**
+ * Registration form. `blocks` come from the active district (passed by the
+ * server register page) so each district offers its own block list.
+ */
+export default function RegisterForm({ blocks }: { blocks: string[] }) {
   const router = useRouter();
   const [state, formAction] = useFormState(registerUser, initialState);
 
@@ -99,11 +90,11 @@ export default function RegisterForm() {
             type="text"
             required
             list="block-list"
-            placeholder="e.g. Madhupur"
+            placeholder={`e.g. ${blocks[0] ?? "Your block"}`}
             className="form-input"
           />
           <datalist id="block-list">
-            {BLOCKS.map((b) => (
+            {blocks.map((b) => (
               <option key={b} value={b} />
             ))}
           </datalist>

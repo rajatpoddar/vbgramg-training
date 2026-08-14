@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import { isAdminAuthenticated } from "@/lib/admin";
+import { getDistrict } from "@/lib/districts";
 
 /**
  * Header — official Government-of-India portal style.
@@ -27,6 +28,7 @@ import { isAdminAuthenticated } from "@/lib/admin";
  */
 export default function Header() {
   const isAdmin = isAdminAuthenticated();
+  const district = getDistrict();
 
   return (
     <header className="no-print">
@@ -59,7 +61,7 @@ export default function Header() {
               Viksit Bharat <span className="text-saffron-dark">-</span> G RAM G
             </h1>
             <p className="mt-0.5 hidden text-[10px] font-medium uppercase tracking-widest text-gray-600 sm:block md:text-xs">
-              Training Programme · District Administration, Deoghar
+              Training Programme · District Administration, {district.name}
             </p>
           </div>
 

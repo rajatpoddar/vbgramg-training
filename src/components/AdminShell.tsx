@@ -8,6 +8,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { adminLogout } from "@/lib/actions/admin";
+import { getDistrict } from "@/lib/districts";
 
 /**
  * Shared layout for the Admin Portal pages.
@@ -25,6 +26,7 @@ export default function AdminShell({
   fullBleedPrint?: boolean;
   children: React.ReactNode;
 }) {
+  const district = getDistrict();
   return (
     <div
       className={`mx-auto max-w-6xl px-4 py-8 ${
@@ -38,7 +40,7 @@ export default function AdminShell({
           <div>
             <p className="text-sm font-semibold leading-tight">Admin Portal</p>
             <p className="text-[11px] text-gray-300">
-              District Administration, Deoghar
+              District Administration, {district.name}
             </p>
           </div>
         </div>

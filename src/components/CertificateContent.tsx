@@ -1,5 +1,6 @@
 import { Building2, Landmark } from "lucide-react";
 import { formatDateTimeIST } from "@/lib/dates";
+import type { DistrictConfig } from "@/lib/districts";
 
 /** Minimum candidate fields the certificate needs. */
 export type CertificateUser = {
@@ -25,9 +26,12 @@ export type CertificateUser = {
 export default function CertificateContent({
   user,
   qrDataUrl,
+  district,
 }: {
   user: CertificateUser;
   qrDataUrl: string;
+  /** Active district — drives the authority / date / district text on the sheet. */
+  district: DistrictConfig;
 }) {
   return (
     <div className="certificate-frame">
@@ -56,7 +60,7 @@ export default function CertificateContent({
                 Viksit Bharat — G RAM G Mission (Gramin)
               </p>
               <p className="mt-1 text-[3mm] font-medium text-gray-700">
-                District Rural Development Section (DRDS), Deoghar
+                {district.program.authority}
               </p>
             </div>
             <div className="flex flex-col items-center gap-1" aria-hidden="true">
@@ -82,8 +86,8 @@ export default function CertificateContent({
             </p>
             <p className="cert-name">{user.name}</p>
             <p className="cert-details">
-              {user.designation} · Block {user.block} · District Deoghar,
-              Jharkhand
+              {user.designation} · Block {user.block} · District{" "}
+              {district.program.districtLabel}
             </p>
           </div>
 
@@ -94,9 +98,9 @@ export default function CertificateContent({
             <strong>
               Viksit Bharat — Guarantee for Rozgar and Ajeevika Mission (Gramin)
             </strong>{" "}
-            programme by the District Rural Development Section, Deoghar on{" "}
-            <strong>13th August, 2026</strong>. This certificate is issued as an
-            official record of participation.
+            programme by the {district.program.authority} on{" "}
+            <strong>{district.program.eventDate}</strong>. This certificate is
+            issued as an official record of participation.
           </p>
 
           {/* Footer: date | QR | signatures */}
@@ -129,13 +133,15 @@ export default function CertificateContent({
 
             <div className="cert-footer-col">
               <p className="cert-signature-line">Exam Controller</p>
-              <p className="mt-1 text-[2.6mm] text-gray-500">DRDS, Deoghar</p>
+              <p className="mt-1 text-[2.6mm] text-gray-500">
+                DRDS, {district.name}
+              </p>
             </div>
             <div className="cert-footer-col">
               <p className="cert-signature-line">
                 District Development Officer
               </p>
-              <p className="mt-1 text-[2.6mm] text-gray-500">Deoghar</p>
+              <p className="mt-1 text-[2.6mm] text-gray-500">{district.name}</p>
             </div>
           </div>
         </div>

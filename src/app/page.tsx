@@ -20,6 +20,7 @@
 } from "lucide-react";
 import { getQuestionCount, isExamOpen } from "@/lib/queries";
 import { isAdminAuthenticated } from "@/lib/admin";
+import { getDistrict } from "@/lib/districts";
 import { EXAM_DURATION_MINUTES, EXAM_QUESTION_COUNT } from "@/lib/examConfig";
 import { getPresentations } from "@/lib/presentations";
 import PptLibrary from "@/components/PptLibrary";
@@ -36,6 +37,7 @@ export default async function HomePage() {
     isExamOpen(),
     isAdminAuthenticated(),
   ]);
+  const district = getDistrict();
 
   // Training PPTs dropped into public/ppt/ — shown at the bottom of the page.
   const presentations = getPresentations();
@@ -154,7 +156,7 @@ export default async function HomePage() {
 
         <p className="mt-4 max-w-3xl text-sm leading-relaxed text-gray-600 md:text-base">
           Welcome to the official online assessment platform conducted by the{" "}
-          <strong className="text-navy">District Rural Development Section (DRDS), Deoghar</strong>,
+          <strong className="text-navy">{district.program.authority}</strong>,
           Government of Jharkhand. Registered participants may appear for the
           objective examination from the Participant Portal below — on mobile
           or desktop.
@@ -165,13 +167,13 @@ export default async function HomePage() {
           <p className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 shrink-0 text-saffron-dark" />
             <span>
-              <strong>Date:</strong> 13th August, 2026
+              <strong>Date:</strong> {district.program.eventDate}
             </span>
           </p>
           <p className="flex items-center gap-2">
             <MapPin className="h-4 w-4 shrink-0 text-saffron-dark" />
             <span>
-              <strong>Venue:</strong> DRDS Training Hall, Deoghar
+              <strong>Venue:</strong> {district.program.venue}
             </span>
           </p>
         </div>

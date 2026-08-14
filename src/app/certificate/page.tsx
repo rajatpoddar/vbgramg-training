@@ -7,6 +7,7 @@ import CertificateContent from "@/components/CertificateContent";
 import CertificateSheet from "@/components/CertificateSheet";
 import PrintButton from "@/components/PrintButton";
 import { getUserById } from "@/lib/queries";
+import { getDistrict } from "@/lib/districts";
 
 export const metadata: Metadata = {
   title: "Participation Certificate",
@@ -39,6 +40,7 @@ export default async function CertificatePage({
   const userId = searchParams.userId;
   const isVerification = searchParams.verify === "1";
   const user = userId ? await getUserById(userId) : null;
+  const district = getDistrict();
 
   // Build the public verification URL from the request itself, so it works
   // whether the portal is on the LAN, behind Tailscale, or a public domain.
@@ -109,7 +111,11 @@ export default async function CertificatePage({
               phone screens; on print it is removed so the paper output stays
               a full A4 landscape sheet. */}
           <CertificateSheet>
-            <CertificateContent user={user!} qrDataUrl={qrDataUrl} />
+            <CertificateContent
+              user={user!}
+              qrDataUrl={qrDataUrl}
+              district={district}
+            />
           </CertificateSheet>
 
           <p className="no-print mt-4 text-center text-xs text-gray-500">

@@ -10,6 +10,7 @@ import {
   isExamOpen,
   RESUME_GRACE_MS,
 } from "@/lib/queries";
+import { getDistrict } from "@/lib/districts";
 
 export const metadata: Metadata = {
   title: "Examination",
@@ -46,6 +47,7 @@ export default async function ExamPage({
     getOrCreateExamSession(userId),
     isExamOpen(),
   ]);
+  const district = getDistrict();
 
   if (!user) {
     redirect("/register");
@@ -92,7 +94,7 @@ export default async function ExamPage({
           <h1 className="gov-heading">Examination Not Available</h1>
           <p className="mt-3 text-sm text-gray-600">
             Questions have not been published yet. Please contact the District
-            Rural Development Agency, Deoghar, or check back later.
+            Rural Development Agency, {district.name}, or check back later.
           </p>
         </div>
       </div>
