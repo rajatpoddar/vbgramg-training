@@ -18,7 +18,10 @@ sorted by filename.
 - Keep filenames reasonably short and avoid special characters (`&`, `#`,
   spaces are fine but encode awkwardly) — the filename becomes the visible
   title on the page.
-- Files are served as-is from `/ppt/<filename>`. Each presentation is
-  embedded lazily (only loads when the visitor scrolls to it) so large files
-  never slow down the page.
+- Files are served as-is from `/ppt/<filename>`. Each card shows a **Play**
+  button and the file is fetched + rendered in the visitor's browser only
+  when they press it, so large files never slow down the page.
+- `.pptx` files are preferred — they render fully in the browser (next /
+  previous / full screen). Legacy `.ppt` files fall back to Microsoft's
+  online viewer.
 - Do not delete this `README.md` — it keeps the folder in the repository.

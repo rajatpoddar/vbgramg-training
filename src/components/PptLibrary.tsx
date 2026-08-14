@@ -1,29 +1,35 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   Download,
   ExternalLink,
   Loader2,
+  Maximize2,
+  Minimize2,
+  Play,
   Presentation as PresentationIcon,
-  WifiOff,
+  RefreshCw,
+  XCircle,
 } from "lucide-react";
 import type { Presentation } from "@/lib/presentations";
+import type { PPTXViewer } from "pptxviewjs";
 
 /**
- * Session Presentations — a lazy-loading grid of the training PPTs.
+ * Session Presentations — a play-to-load grid of the training PPTs.
  *
- * The PPTX files are large, so nothing heavy loads up front: each card
- * mounts its Office-Online embed iframe only when scrolled into view, and
- * the embed streams the file from Microsoft's viewer — the browser never
- * downloads the raw PPTX just to render the page.
+ * Nothing heavy loads up front. Each card shows a Play button; the file is
+ * fetched and rendered **only when the visitor presses Play**. The slides are
+ * parsed and drawn in the visitor's own browser (pptxviewjs), so the preview
+ * works on any network — LAN, NAS, or public internet — with no dependency on
+ * Microsoft's online viewer. Next / previous / fullscreen controls are shown
+ * once a deck is open.
  *
- * The Microsoft viewer fetches the file from a *public* URL, so the live
- * preview only works when the portal is reachable on the internet. On
- * localhost / a private LAN the embed would just show Microsoft's "can't
- * open this" error — instead we detect that case and show a clean
- * download card. A Download / Open link is always shown under every card
- * as a fallback.
+ * Legacy `.ppt` files (not ZIP-based) can't be parsed in the browser, so those
+ * fall back to Microsoft's Office Online viewer iframe. A Download / Open link
+ * is always shown under every card as a fallback.
  */
 
 /** Is this host unreachable from the internet (localhost, private LAN)? */
@@ -57,7 +63,7 @@ function isPrivateHost(hostname: string): boolean {
   return false;
 }
 
-/** Microsoft Office Online viewer — renders a PPTX served at `fileUrl`. */
+/** Microsoft Office Online viewer — renders a PPTX/PPT served at `fileUrl`. */
 function officeEmbedSrc(fileUrl: string): string {
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
     fileUrl
@@ -80,9 +86,11 @@ export default function PptLibrary({
             Session Presentations
           </h2>
           <p className="mt-1 text-sm text-gray-600">
-            सत्र प्रस्तुतियाँ — Training slides for reference. Use{" "}
-            <strong className="text-gray-700">Download</strong> to save a copy
-            or <strong className="text-gray-700">Open</strong> to view in a new
+            सत्र प्रस्तुतियाँ — Training slides for reference. Press{" "}
+            <strong className="text-gray-700">Play</strong> to view the slides
+            right here, use <strong className="text-gray-700">Download</strong>{" "}
+            to save a copy, or{" "}
+            <strong className="text-gray-700">Open</strong> to view in a new
             tab.
           </p>
         </div>
@@ -97,12 +105,16 @@ export default function PptLibrary({
   );
 }
 
-/** One presentation card with a lazy-mounted embed (public) or a download card. */
+/** Idle → Play → loading → viewer. One presentation card. */
 function PptCard({ presentation }: { presentation: Presentation }) {
   const { title, fileUrl, sizeLabel } = presentation;
 
-  // Whether the file URL is fetchable by Microsoft's viewer (i.e. the
-  // portal is reachable over the internet, not just localhost / LAN).
+  // Modern ZIP-based decks are rendered in the browser; legacy .ppt files
+  // fall back to Microsoft's Office Online iframe.
+  const isPptx = fileUrl.toLowerCase().endsWith(".pptx");
+
+  // Whether the Office Online "Open in new tab" link can reach the file
+  // (it needs the portal to be publicly reachable from the internet).
   const [canPreview] = useState<boolean>(() => {
     try {
       return !isPrivateHost(new URL(fileUrl).hostname);
@@ -111,37 +123,145 @@ function PptCard({ presentation }: { presentation: Presentation }) {
     }
   });
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle"
+  );
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [slideCount, setSlideCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const viewerRef = useRef<PPTXViewer | null>(null);
+  const stateRef = useRef(state);
+  const busyRef = useRef(false);
 
   useEffect(() => {
-    // No point observing when there is nothing to lazy-load.
-    if (!canPreview) return;
-    const node = containerRef.current;
-    if (!node) return;
-    // No observer (very old browsers) → load immediately rather than never.
-    if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
+    stateRef.current = state;
+  }, [state]);
+
+  /** Re-draw the current slide after the card resizes (incl. fullscreen). */
+  const renderCurrent = useCallback(async () => {
+    const viewer = viewerRef.current;
+    const canvas = canvasRef.current;
+    if (!viewer || !canvas || viewer.getSlideCount() === 0) return;
+    try {
+      await viewer.render(canvas, { quality: "high" });
+    } catch {
+      // Ignore transient render failures (e.g. mid-fullscreen).
     }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      // Start loading slightly before the card is actually on screen.
-      { rootMargin: "400px 0px" }
-    );
+  }, []);
+
+  useEffect(() => {
+    const onFullscreenChange = () =>
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stateRef.current === "ready") void renderCurrent();
+    });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [canPreview]);
+  }, [renderCurrent]);
+
+  // Arrow-key navigation while a deck is open.
+  useEffect(() => {
+    if (state !== "ready" || !isPptx) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight") void viewerRef.current?.nextSlide();
+      else if (event.key === "ArrowLeft") void viewerRef.current?.previousSlide();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state, isPptx]);
+
+  // Tear down the viewer when the card unmounts.
+  useEffect(() => {
+    return () => {
+      viewerRef.current?.destroy();
+      viewerRef.current = null;
+    };
+  }, []);
+
+  const play = useCallback(async () => {
+    if (busyRef.current || stateRef.current !== "idle") return;
+    busyRef.current = true;
+    setState("loading");
+    try {
+      if (isPptx) {
+        // Drop any previous (possibly failed) viewer before retrying.
+        viewerRef.current?.destroy();
+        viewerRef.current = null;
+        const { PPTXViewer } = await import("pptxviewjs");
+        const viewer = new PPTXViewer({
+          canvas: canvasRef.current ?? undefined,
+          slideSizeMode: "fit",
+          enableThumbnails: false,
+          backgroundColor: "#ffffff",
+        });
+        viewerRef.current = viewer;
+        viewer.on("slideChanged", (index) =>
+          setSlideIndex(Number(index) || 0)
+        );
+        viewer.on("loadComplete", (data) => {
+          const payload = (data ?? {}) as { slideCount?: unknown };
+          setSlideCount(
+            typeof payload.slideCount === "number"
+              ? payload.slideCount
+              : viewer.getSlideCount()
+          );
+        });
+        await viewer.loadFromUrl(fileUrl);
+        await viewer.render(canvasRef.current, { quality: "high" });
+        setState("ready");
+      } else {
+        // Legacy .ppt — mount the Office Online viewer iframe.
+        setState("ready");
+      }
+    } catch (error) {
+      console.error("[PptLibrary] failed to load presentation:", error);
+      setState("error");
+    } finally {
+      busyRef.current = false;
+    }
+  }, [fileUrl, isPptx]);
+
+  const goTo = useCallback((delta: number) => {
+    const viewer = viewerRef.current;
+    if (!viewer || stateRef.current !== "ready") return;
+    if (delta > 0) void viewer.nextSlide();
+    else if (delta < 0) void viewer.previousSlide();
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const node = cardRef.current;
+    if (!node) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else if (typeof node.requestFullscreen === "function") {
+        await node.requestFullscreen();
+      }
+    } catch {
+      // Fullscreen can be rejected (e.g. unsupported on iOS) — ignore.
+    }
+  }, []);
+
+  const fullscreenSupported =
+    typeof document !== "undefined" &&
+    typeof document.documentElement.requestFullscreen === "function";
 
   return (
-    <div className="flex flex-col overflow-hidden rounded border border-gray-200 bg-white">
+    <div
+      ref={cardRef}
+      className="flex flex-col overflow-hidden rounded border border-gray-200 bg-white"
+    >
       {/* Title bar */}
       <div className="flex items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-3.5 py-2.5">
         <p
@@ -157,64 +277,122 @@ function PptCard({ presentation }: { presentation: Presentation }) {
         )}
       </div>
 
-      {/* 16:9 preview / download area */}
-      <div className="aspect-video w-full bg-gray-100">
-        {canPreview ? (
-          <>
-            {visible ? (
-              <iframe
-                src={officeEmbedSrc(fileUrl)}
-                title={title}
-                className="h-full w-full border-0"
-                allowFullScreen
-                onLoad={() => setLoaded(true)}
-                onError={() => setFailed(true)}
-              />
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-400">
-                <PresentationIcon className="h-8 w-8" />
-                <p className="px-4 text-center text-xs">
-                  Presentation loads when you scroll to it.
-                </p>
-              </div>
-            )}
+      {/* 16:9 preview / player area */}
+      <div className="relative aspect-video w-full bg-gray-100">
+        {isPptx && (
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 h-full w-full"
+            aria-label={`${title} — slide ${slideIndex + 1}`}
+          />
+        )}
 
-            {visible && !loaded && !failed && (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
-                <Loader2 className="h-6 w-6 animate-spin text-saffron-dark" />
-                <p className="px-4 text-center text-xs">Loading presentation…</p>
-              </div>
-            )}
+        {state === "idle" && (
+          <button
+            type="button"
+            onClick={play}
+            className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-2.5 bg-gradient-to-b from-gray-900/5 via-gray-900/35 to-gray-900/75 transition-colors hover:from-gray-900/10 hover:via-gray-900/45 hover:to-gray-900/85"
+            title={`Play ${title}`}
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-saffron text-white shadow-lg shadow-black/30 transition-transform group-hover:scale-105">
+              <Play className="h-6 w-6 fill-current" />
+            </span>
+            <span className="text-sm font-semibold text-white drop-shadow">
+              Play Presentation
+            </span>
+            <span className="px-6 text-center text-[11px] leading-relaxed text-white/80">
+              Slides load only when you press play
+            </span>
+          </button>
+        )}
 
-            {visible && failed && (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center text-xs text-gray-500">
-                <p>Could not load the preview.</p>
-              </div>
-            )}
-          </>
-        ) : (
-          /* Local / private network → the Office viewer can't reach the
-             file, so offer a clean download instead of an error page. */
-          <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-4 text-center">
-            <WifiOff className="h-8 w-8 text-gray-400" />
-            <p className="text-xs leading-relaxed text-gray-500">
-              Live preview needs the portal to be reachable on the internet.
+        {state === "loading" && (
+          <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-2 bg-white px-4 text-center">
+            <Loader2 className="h-7 w-7 animate-spin text-saffron-dark" />
+            <p className="text-xs text-gray-500">
+              Loading presentation…
               <br />
-              Download the file to view it on your device.
+              <span className="text-gray-400">
+                Large files may take a moment
+              </span>
             </p>
-            <a
-              href={fileUrl}
-              download
-              className="inline-flex items-center gap-1.5 rounded border border-saffron-dark bg-saffron px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-saffron-dark"
+          </div>
+        )}
+
+        {state === "ready" && isPptx && (
+          <div className="absolute inset-0">
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gray-900/70 px-2 py-1.5 backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => goTo(-1)}
+                disabled={slideIndex <= 0}
+                className="rounded p-1.5 text-white transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+                title="Previous slide (←)"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="min-w-[4.5rem] text-center text-[11px] font-medium tabular-nums text-white">
+                {slideCount > 0 ? `${slideIndex + 1} / ${slideCount}` : "—"}
+              </span>
+              <button
+                type="button"
+                onClick={() => goTo(1)}
+                disabled={slideCount > 0 && slideIndex >= slideCount - 1}
+                className="rounded p-1.5 text-white transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+                title="Next slide (→)"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              {fullscreenSupported && (
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  className="ml-1.5 rounded p-1.5 text-white transition-colors hover:bg-white/15"
+                  title={isFullscreen ? "Exit full screen" : "Full screen"}
+                  aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="h-4 w-4" />
+                  ) : (
+                    <Maximize2 className="h-4 w-4" />
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {state === "ready" && !isPptx && (
+          <iframe
+            src={officeEmbedSrc(fileUrl)}
+            title={title}
+            className="absolute inset-0 h-full w-full border-0"
+            allowFullScreen
+          />
+        )}
+
+        {state === "error" && (
+          <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <XCircle className="h-8 w-8 text-red-400" />
+            <p className="text-xs leading-relaxed text-gray-600">
+              Couldn&apos;t open this presentation in the browser.
+              <br />
+              Use <strong>Download</strong> or <strong>Open</strong> below.
+            </p>
+            <button
+              type="button"
+              onClick={() => setState("idle")}
+              className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-navy hover:bg-parchment"
             >
-              <Download className="h-3.5 w-3.5" /> Download{" "}
-              {sizeLabel && <span className="font-normal opacity-90">({sizeLabel})</span>}
-            </a>
+              <RefreshCw className="h-3 w-3" /> Try Again
+            </button>
           </div>
         )}
       </div>
 
-      {/* Always-visible actions (escape hatch even if a preview fails) */}
+      {/* Always-visible actions (escape hatch even if the player fails) */}
       <div className="flex items-center gap-1.5 border-t border-gray-100 bg-gray-50 px-3.5 py-2">
         <a
           href={fileUrl}
@@ -233,11 +411,9 @@ function PptCard({ presentation }: { presentation: Presentation }) {
         >
           <ExternalLink className="h-3 w-3" /> Open
         </a>
-        {canPreview && (
-          <span className="ml-auto text-[10px] text-gray-400">
-            Preview via Microsoft Office Online
-          </span>
-        )}
+        <span className="ml-auto text-[10px] text-gray-400">
+          Play to view · Download to save
+        </span>
       </div>
     </div>
   );

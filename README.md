@@ -33,9 +33,14 @@ Government of Jharkhand.
 ### Session Presentations
 - Drop `.ppt` / `.pptx` files into `public/ppt/` and they appear automatically
   at the bottom of the home page (just above the footer), sorted by filename.
-- Embeds are **lazy-loaded** (each presentation loads only when scrolled into
-  view via the Microsoft Office Online viewer), so large slide decks never
-  slow down page loads.
+- Each card shows a **Play button** — nothing loads until the visitor presses
+  it. `.pptx` decks are fetched and rendered in the visitor's own browser
+  (pptxviewjs), so the preview works on LAN, NAS, or public internet with no
+  dependency on Microsoft's online viewer. Once playing, the card offers
+  next/previous slide, a slide counter, and full screen.
+- Legacy `.ppt` files fall back to the Microsoft Office Online embed.
+- **Download** (save the file) and **Open** (new tab) buttons are always shown
+  under each card.
 
 ### Admin side (protected by password + session cookie)
 - **Dashboard** — aggregate stats + full table of registered candidates and
